@@ -7,13 +7,40 @@ import { motion } from "framer-motion";
 import { Activity, ArrowRight, Bell, Brain, BrainCircuit, Heart, Loader2, MessageSquare, Sparkles, Trophy } from "lucide-react";
 import { useState,useEffect } from "react"
 import {format} from "date-fns"
-import { Dialog } from "@radix-ui/react-dialog";
-import { DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog,DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AnxietyGames } from "@/components/games/anxiety-games";
+import { MoodForm } from "@/components/mood/mood-form";
+import { ActivityLogger } from "@/components/activities/activity-logger";
+import { useRouter } from "next/navigation";
 
 export default function DashboardPage(){
 
-    const [showMoodModal,setShowMoodModal] = useState(false)
+    const [currentTime,setCurrentTime] = useState(new Date());
+    const [showMoodModal,setShowMoodModal] = useState(false);
+    const [isSavingMood,setIsSavingMood] = useState(false);
+    const [showActivityLogger,setShowActivityLogger] = useState(false);
+
+    const router = useRouter();
+
+
+    const handleMoodSubmit = async(data:{moodScore:number}) => {
+        setIsSavingMood(true);
+        try {
+            setShowMoodModal(false)
+        } catch (error) {
+            console.error("Error saving mood :",error)
+        }finally{
+            setIsSavingMood(false)
+        }
+    }
+
+    const handleAICheckIn= () => {
+        setShowActivityLogger(true)
+    }
+
+    const handleStartTheraphy = () => {
+        router.push("/therapy/new")
+    }
 
     const dailyStats = {
     moodScore: 85,
@@ -73,8 +100,6 @@ const wellnessStats = [
 
 
     
-
-    const [currentTime,setCurrentTime] = useState(new Date());
 
     useEffect(()=>{
         const timer = setInterval(()=> setCurrentTime(new Date()),1000);
@@ -139,6 +164,7 @@ const wellnessStats = [
                                                 "bg-gradient-to-r from-primary/90 to-primary hover:from-primary hover:to-primary/90",
                                                 "transition-all duration-200 group-hover:translate-y-[-2px]"
                                             )}
+                                            onClick={handleStartTheraphy}
                                         >
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
@@ -167,6 +193,7 @@ const wellnessStats = [
                                                     "justify-center items-center text-center",
                                                     "transition-all duration-200 group-hover:translate-y-[-2px]"
                                                 )}
+                                                onClick={() => setShowMoodModal(true)}
                                             >
                                                 <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center mb-2">
                                                     <Heart className="w-5 h-5 text-rose-500" />
@@ -178,15 +205,18 @@ const wellnessStats = [
                                                     </div>
                                                 </div>
                                             </Button>
+                                            
 
                                             {/* AI Check-in Button */}
                                             <Button
+                                                 onClick={handleAICheckIn}
                                                 variant="outline"
                                                 className={cn(
                                                     "flex flex-col h-[120px] px-4 py-3 group/ai hover:border-primary/50",
                                                     "justify-center items-center text-center",
                                                     "transition-all duration-200 group-hover:translate-y-[-2px]"
                                                 )}
+                                                
                                             >
                                                 <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center mb-2">
                                                     <BrainCircuit className="w-5 h-5 text-blue-500" />
@@ -272,8 +302,12 @@ const wellnessStats = [
                      <DialogDescription>Move the slider to track your currnet mood</DialogDescription>
                     </DialogHeader>
                     {/* mood form */}
+                   <MoodForm onSubmit={handleMoodSubmit} isLoading={isSavingMood} />
                 </DialogContent>
             </Dialog>
+     <ActivityLogger
+        open={showActivityLogger}
+        onOpenChange={setShowActivityLogger}/>
         </div>
     );
 }

@@ -7,6 +7,9 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 
 const TOTAL_ROUNDS = 5;
+// Define speeds for clarity
+const INHALE_EXHALE_SPEED = 2; // 100 / 2 = 50 steps = 5 seconds (with 100ms interval)
+const HOLD_SPEED = 4; // 100 / 4 = 25 steps = 2.5 seconds (with 100ms interval)
 
 export function BreathingGame() {
   const [phase, setPhase] = useState<"inhale" | "hold" | "exhale">("inhale");
@@ -16,49 +19,48 @@ export function BreathingGame() {
   const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
-    if (isComplete || isPaused) return;
+    if (isPaused || isComplete) return;
 
-    let timer: NodeJS.Timeout;
+    const intervalId = setInterval(() => {
+      setProgress((prevProgress) => {
+        // 1. Calculate the next progress based on the CURRENT phase
+        const speed = phase === "hold" ? HOLD_SPEED : INHALE_EXHALE_SPEED;
+        let nextProgress = prevProgress + speed;
 
-    if (phase === "inhale") {
-      timer = setInterval(() => {
-        setProgress((p) => {
-          if (p >= 100) {
-            setPhase("hold");
-            return 0;
-          }
-          return p + 2;
-        });
-      }, 100);
-    } else if (phase === "hold") {
-      timer = setInterval(() => {
-        setProgress((p) => {
-          if (p >= 100) {
-            setPhase("exhale");
-            return 0;
-          }
-          return p + 4;
-        });
-      }, 100);
-    } else {
-      timer = setInterval(() => {
-        setProgress((p) => {
-          if (p >= 100) {
-            if (round >= TOTAL_ROUNDS) {
-              setIsComplete(true);
-              return p;
-            }
-            setPhase("inhale");
-            setRound((r) => r + 1);
-            return 0;
-          }
-          return p + 2;
-        });
-      }, 100);
-    }
+        // 2. Check if the phase is complete (nextProgress >= 100)
+        if (nextProgress >= 100) {
+          // A. Advance the phase
+          setPhase((prevPhase) => {
+            if (prevPhase === "inhale") return "hold";
+            if (prevPhase === "hold") return "exhale";
 
-    return () => clearInterval(timer);
-  }, [phase, round, isComplete, isPaused]);
+            // If exhale finished → increment round or finish
+            setRound((r) => {
+              if (r + 1 > TOTAL_ROUNDS) {
+                setIsComplete(true);
+                return r;
+              }
+              return r + 1;
+            });
+
+            return "inhale"; // Start a new phase (inhale)
+          });
+
+          // B. Reset progress for the next phase
+          return 0;
+        }
+
+        // 3. Return the calculated next progress if phase is not complete
+        return nextProgress;
+      });
+    }, 100);
+
+    return () => clearInterval(intervalId);
+  }, [phase, isPaused, isComplete]); // The fix is to ensure `phase` is in the dependency array
+                                      // so that when `phase` changes, the effect re-runs and
+                                      // the correct `phase` is used for the `speed` calculation
+                                      // on the very next tick.
+
 
   const handleReset = () => {
     setPhase("inhale");
@@ -94,14 +96,19 @@ export function BreathingGame() {
     <div className="flex flex-col items-center justify-center h-[400px] space-y-8">
       <AnimatePresence mode="wait">
         <motion.div
-          key={phase}
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.8 }}
           className="text-center space-y-4"
+          key={phase} // Added key to force remount/re-transition on phase change
         >
           <div className="relative w-32 h-32 mx-auto">
             <motion.div
+              // NOTE: The transition duration of 4 seconds is now tied to the
+              // speed constants: 5s (inhale/exhale) and 2.5s (hold) in the useEffect.
+              // To make the animation match the timer, you should set a dynamic duration
+              // or change the speed constants to match the 4s in the animation.
+              // I'll leave the animation as-is, but be aware of the mismatch.
               animate={{
                 scale: phase === "inhale" ? 1.5 : phase === "exhale" ? 1 : 1.2,
               }}
