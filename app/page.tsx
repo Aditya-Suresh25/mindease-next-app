@@ -2,15 +2,32 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import {
+  Brain,
+  Shield,
   Waves,
   ArrowRight,
+  HeartPulse,
+  Lightbulb,
+  Lock,
+  MessageSquareHeart,
+  Sparkles,
+  CheckCircle,
+  UserPlus,
+  Edit,
+  Clock,
 } from "lucide-react";
-
-import { motion} from "framer-motion";
+import { motion } from "framer-motion";
 import { Slider } from "@/components/ui/slider";
 import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import React from "react";
 import { Ripple } from "@/components/ui/ripple";
 
@@ -28,6 +45,26 @@ export default function Home() {
   const [showDialog, setShowDialog] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
 
+  const welcomeSteps = [
+    {
+      title: "Hi, I'm MindEase 👋",
+      description:
+        "Your AI companion for emotional well-being. I'm here to provide a safe, judgment-free space for you to express yourself.",
+      icon: Waves,
+    },
+    {
+      title: "Personalized Support 🌱",
+      description:
+        "I adapt to your needs and emotional state, offering evidence-based techniques and gentle guidance when you need it most.",
+      icon: Brain,
+    },
+    {
+      title: "Your Privacy Matters 🛡️",
+      description:
+        "Our conversations are completely private and secure. I follow strict ethical guidelines and respect your boundaries.",
+      icon: Shield,
+    },
+  ];
 
   useEffect(() => {
     setMounted(true);
@@ -36,6 +73,67 @@ export default function Home() {
   const currentEmotion =
     emotions.find((em) => Math.abs(emotion - em.value) < 15) || emotions[2];
 
+  const features = [
+    {
+      icon: HeartPulse,
+      title: "24/7 Support",
+      description: "Always here to listen and support you, any time of day",
+      color: "from-rose-500/20",
+      delay: 0.2,
+    },
+    {
+      icon: Lightbulb,
+      title: "Smart Insights",
+      description: "Personalized guidance powered by emotional intelligence",
+      color: "from-amber-500/20",
+      delay: 0.4,
+    },
+    {
+      icon: Lock,
+      title: "Private & Secure",
+      description: "Your conversations are always confidential and encrypted",
+      color: "from-emerald-500/20",
+      delay: 0.6,
+    },
+    {
+      icon: MessageSquareHeart,
+      title: "Evidence-Based",
+      description: "Therapeutic techniques backed by clinical research",
+      color: "from-blue-500/20",
+      delay: 0.8,
+    },
+  ];
+
+
+  const steps = [
+    {
+      number: 1,
+      icon: UserPlus,
+      title: 'Create Your Account',
+      description: 'Sign up for free in seconds. No credit card required, just your commitment to wellness.',
+      numberBg: 'bg-gradient-to-br from-primary to-secondary', // FIX: Theme color
+      iconColors: 'text-primary border-primary/20', // FIX: Theme color
+      delay: 0.1,
+    },
+    {
+      number: 2,
+      icon: Edit,
+      title: 'Choose Your Tools',
+      description: 'Select from chatbot, mood tracking, music, games, and more based on your needs.',
+      numberBg: 'bg-gradient-to-br from-secondary to-primary', // FIX: Theme color
+      iconColors: 'text-secondary border-secondary/20', // FIX: Theme color
+      delay: 0.2,
+    },
+    {
+      number: 3,
+      icon: CheckCircle,
+      title: 'Start Your Journey',
+      description: 'Begin using the tools and track your progress. Get support whenever you need it.',
+      numberBg: 'bg-gradient-to-br from-primary/90 to-primary', // FIX: Theme color
+      iconColors: 'text-primary border-primary/20', // FIX: Theme color
+      delay: 0.3,
+    },
+  ];
 
   return (
     <div className="flex flex-col min-h-screen overflow-hidden">
@@ -158,12 +256,26 @@ export default function Home() {
             </Button>
           </motion.div>
         </motion.div>
+
+        {/* Enhanced scroll indicator */}
+        <motion.div
+          className="absolute bottom-8 left-1/2 -translate-x-1/2"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1, duration: 0.8 }}
+        >
+          <div className="w-6 h-10 rounded-full border-2 border-primary/20 flex items-start justify-center p-1 hover:border-primary/40 transition-colors duration-300">
+            <div className="w-1 h-2 rounded-full bg-primary animate-scroll" />
+          </div>
+        </motion.div>
       </section>
-      
-       {/* Enhanced Features Grid */}
-      <section className="relative py-20 px-4 overflow-hidden">
+
+      {/* Enhanced Features Grid */}
+      <section id="features"className="relative py-20 px-4 overflow-hidden">
+        {/* <div className="absolute inset-0 bg-gradient-to-b from-background via-background/50 to-background" /> */}
+
         <div className="max-w-6xl mx-auto">
-           <motion.div className="text-center mb-16 space-y-4 text-white ">
+          <motion.div className="text-center mb-16 space-y-4 text-white ">
             <h2 className="text-3xl font-bold bg-gradient-to-r from-primary/90 to-primary bg-clip-text text-transparent dark:text-primary/90">
               How MindEase Helps You
             </h2>
@@ -173,10 +285,264 @@ export default function Home() {
             </p>
           </motion.div>
 
-          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative">
+            {features.map((feature, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: feature.delay, duration: 0.5 }}
+                viewport={{ once: true }}
+              >
+                <Card className="group relative overflow-hidden border border-primary/10 hover:border-primary/20 transition-all duration-300 h-[200px] bg-card/30 dark:bg-card/80 backdrop-blur-sm">
+                  <div
+                    className={`absolute inset-0 bg-gradient-to-br ${feature.color} to-transparent opacity-0 group-hover:opacity-20 transition-opacity duration-500 dark:group-hover:opacity-30`}
+                  />
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-primary/10 dark:bg-primary/20 group-hover:bg-primary/20 dark:group-hover:bg-primary/30 transition-colors duration-300">
+                        <feature.icon className="w-5 h-5 text-primary dark:text-primary/90" />
+                      </div>
+                      <h3 className="font-semibold tracking-tight text-foreground/90 dark:text-foreground">
+                        {feature.title}
+                      </h3>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground/90 dark:text-muted-foreground leading-relaxed">
+                      {feature.description}
+                    </p>
+                  </CardContent>
+                  <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/20 dark:via-primary/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                </Card>
+              </motion.div>
+            ))}
+          </div>
         </div>
-    </section>
+      </section>
 
+      {/* How It Works Section - FULLY THEMED */}
+      <section
+        id="how-it-works"
+        // FIX: Background uses theme background
+        className="bg-gradient-to-b from-background/50 to-background relative py-20 md:py-32 overflow-hidden"
+      >
+        
+        {/* Background decoration */}
+        <div 
+          // FIX: Uses primary theme color
+          className="absolute top-1/4 left-0 w-[300px] h-[300px] rounded-full blur-[100px] bg-primary/10 opacity-50"
+        ></div>
+        <div 
+          // FIX: Uses secondary theme color
+          className="absolute bottom-1/4 right-0 w-[350px] h-[350px] rounded-full blur-[100px] bg-secondary/10 opacity-50"
+        ></div>
+
+        <div className="max-w-7xl mx-auto px-6 md:px-8 relative z-10">
+          
+          {/* Section Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true }}
+            className="text-center mb-16 md:mb-20"
+          >
+            <div
+              // FIX: Uses card background and primary border/text
+              className="inline-flex items-center gap-2 border px-4 py-2 rounded-full mb-6 shadow-sm bg-card border-primary/20"
+            >
+              <Clock className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-primary/90">
+                Simple & Effective
+              </span>
+            </div>
+            
+            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
+              How
+              <span
+                // FIX: Uses primary/secondary gradient
+                className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/90 to-secondary"
+              >
+                {' MindEase Works'}
+              </span>
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Get started with mental wellness support in three simple steps
+            </p>
+          </motion.div>
+
+          {/* Steps */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 relative">
+            
+            {/* Connecting Lines (Desktop) */}
+            <div
+              // FIX: Line uses primary/secondary gradient
+              className="hidden md:block absolute top-20 left-0 right-0 h-0.5 bg-gradient-to-r from-primary/30 via-secondary/30 to-primary/30"
+            ></div>
+
+            {steps.map((step) => (
+              <motion.div
+                key={step.number}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: step.delay }}
+                viewport={{ once: true }}
+                className="relative"
+              >
+                <div className="flex flex-col items-center text-center">
+                  
+                  {/* Number Badge (uses step.numberBg) */}
+                  <div
+                    className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-lg relative z-10 ${step.numberBg}`}
+                  >
+                    <span className="text-2xl font-bold text-white">{step.number}</span>
+                  </div>
+                  
+                  {/* Icon (uses step.iconColors) */}
+                  <div
+                    // FIX: Uses card background
+                    className={`w-20 h-20 bg-card border-2 rounded-2xl flex items-center justify-center mb-6 shadow-md ${step.iconColors}`}
+                  >
+                    {/* Dynamically render icon component */}
+                    {React.createElement(step.icon, { className: 'w-10 h-10' })}
+                  </div>
+
+                  <h3 className="text-xl font-bold text-foreground mb-3">{step.title}</h3>
+                  <p className="text-muted-foreground leading-relaxed">
+                    {step.description}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* CTA Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            viewport={{ once: true }}
+            className="mt-16 md:mt-20 text-center"
+          >
+            <div
+              // FIX: Uses card background and primary border
+              className="border rounded-3xl p-8 md:p-12 shadow-xl max-w-4xl mx-auto bg-gradient-to-br from-card to-card/50 border-primary/10"
+            >
+              <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-4">
+                Ready to prioritize your mental wellness?
+              </h3>
+              <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
+                Join thousands of users who are taking control of their emotional well-being with MindEase.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                {/* Primary Button */}
+               <Link 
+    href="/signup" 
+    passHref 
+    legacyBehavior // Recommended when wrapping a custom inner element like <button>
+>
+    <button
+        // FIX: Matches your Hero CTA button colors
+        className="text-white px-10 py-4 rounded-full text-base font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2 bg-gradient-to-r from-primary via-primary/90 to-secondary hover:to-primary shadow-primary/20 hover:shadow-primary/30"
+    >
+        Get Started for Free
+        <ArrowRight className="w-5 h-5" strokeWidth={2.5} />
+    </button>
+</Link>
+ 
+                
+                {/* Secondary Button: WRAPPED WITH LINK */}
+            <Link 
+                href="/learn-more" // <--- TARGET ROUTE FOR YOUR FAQ PAGE
+                passHref 
+            >
+                <button
+                    // FIX: Matches your standard outline style
+                    className="bg-card border-2 px-10 py-4 rounded-full text-base font-semibold shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 border-primary/20 text-primary hover:border-primary/40"
+                >
+                    Learn More
+                </button>
+            </Link>
+              </div>
+            </div>
+          </motion.div>
+
+        </div>
+      </section>
+
+
+      {/* Dialog (Your Original Code) */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="sm:max-w-[425px] bg-card/80 backdrop-blur-lg">
+          <DialogHeader>
+            <motion.div
+              key={currentStep}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-4"
+            >
+              <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                {welcomeSteps[currentStep] && (
+                  <div>
+                    {React.createElement(welcomeSteps[currentStep].icon, {
+                      className: "w-8 h-8 text-primary",
+                    })}
+                  </div>
+                )}
+              </div>
+              <DialogTitle className="text-2xl text-center">
+                {welcomeSteps[currentStep]?.title}
+              </DialogTitle>
+              <DialogDescription className="text-center text-base leading-relaxed">
+                {welcomeSteps[currentStep]?.description}
+              </DialogDescription>
+            </motion.div>
+          </DialogHeader>
+          <div className="flex justify-between items-center mt-8">
+            <div className="flex gap-2">
+              {welcomeSteps.map((_, index) => (
+                <div
+                  key={index}
+                  className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                    index === currentStep ? "bg-primary w-4" : "bg-primary/20"
+                  }`}
+                />
+              ))}
+            </div>
+            <Button
+              onClick={() => {
+                if (currentStep < welcomeSteps.length - 1) {
+                  setCurrentStep((c) => c + 1);
+                } else {
+                  setShowDialog(false);
+                  setCurrentStep(0);
+                  // Here you would navigate to the chat interface
+                }
+              }}
+              className="relative group px-6"
+            >
+              <span className="flex items-center gap-2">
+                {currentStep === welcomeSteps.length - 1 ? (
+                  <>
+                    Let's Begin
+                    <Sparkles className="w-4 h-4 animate-pulse" />
+                  </>
+                ) : (
+                  <>
+                    Next
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+                  </>
+                )}
+              </span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
+
+    
   );
 }

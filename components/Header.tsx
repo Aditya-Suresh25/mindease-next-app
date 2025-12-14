@@ -10,7 +10,7 @@ import { Button } from "./ui/button";
 export default function Header(){
 
 const navItems = [
-{href:"/features",label:"Features"},
+{href:"#features",label:"Features"},
 {href:"/about",label:"About MindEase"},
 ];
 

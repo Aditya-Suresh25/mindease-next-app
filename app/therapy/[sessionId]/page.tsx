@@ -213,6 +213,26 @@ export default function Therapypage(){
                     }
                   }}
                 />
+                 <Button
+                  type="submit"
+                  size="icon"
+                  className={cn(
+                    "absolute right-1.5 bottom-3.5 h-[36px] w-[36px]",
+                    "rounded-xl transition-all duration-200",
+                    "bg-primary hover:bg-primary/90",
+                    "shadow-sm shadow-primary/20",
+                    (isTyping || isChatPaused || !message.trim()) &&
+                      "opacity-50 cursor-not-allowed",
+                    "group-hover:scale-105 group-focus-within:scale-105"
+                  )}
+                  disabled={isTyping || isChatPaused || !message.trim()}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    // handleSubmit(e);
+                  }}
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
                     </div> 
             </form>
             </div>
