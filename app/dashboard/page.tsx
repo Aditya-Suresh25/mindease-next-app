@@ -296,14 +296,17 @@ const wellnessStats = [
 
             {/* mood tracking modal  */}
             <Dialog open={showMoodModal} onOpenChange={setShowMoodModal}>
-                <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                     <DialogTitle>How are you feeling?</DialogTitle>
-                     <DialogDescription>Move the slider to track your currnet mood</DialogDescription>
-                    </DialogHeader>
-                    {/* mood form */}
-                   <MoodForm onSubmit={handleMoodSubmit} isLoading={isSavingMood} />
-                </DialogContent>
+           <DialogContent className="sm:max-w-[425px]">
+  <DialogHeader>
+    <DialogTitle>How are you feeling?</DialogTitle>
+    <DialogDescription>
+      Move the slider to track your current mood
+    </DialogDescription>
+  </DialogHeader>
+
+  <MoodForm onSuccess={() => setShowMoodModal(false)} />
+</DialogContent>
+
             </Dialog>
      <ActivityLogger
         open={showActivityLogger}

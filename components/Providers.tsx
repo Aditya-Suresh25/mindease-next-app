@@ -1,18 +1,22 @@
 'use client';
 
 import { ThemeProvider } from "next-themes";
+import { SessionProvider as NextAuthSessionProvider } from "next-auth/react";
+import { SessionProvider as CustomSessionProvider } from "../lib/contexts/session-context";
 
-export function Providers({children}:{
-    children:React.ReactNode
-}){
-    return (
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <NextAuthSessionProvider>
+      <CustomSessionProvider>
         <ThemeProvider
-        attribute="class"
-        defaultTheme="system"
-        enableSystem 
-        disableTransitionOnChange
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
         >
-            {children}
+          {children}
         </ThemeProvider>
-    );
+      </CustomSessionProvider>
+    </NextAuthSessionProvider>
+  );
 }

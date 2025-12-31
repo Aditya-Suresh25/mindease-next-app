@@ -1,54 +1,56 @@
-import mongoose,{Document,Schema} from "mongoose";
+import mongoose, { Document, Schema } from "mongoose";
 
 export interface IActivity extends Document {
-    userId: mongoose.Types.ObjectId;
-    type:string;
-    name:string;
-    description:string;
-    duration:number;
-    timestamp:Date;
+  userId: mongoose.Types.ObjectId;
+  type: string;
+  name: string;
+  description?: string;
+  duration?: number;
+  timestamp: Date;
 }
 
-const ActivitySchema = new Schema<IActivity>({
+const activitySchema = new Schema<IActivity>(
+  {
     userId: {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-        required: true,
-        index: true,
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
     },
     type: {
-        type:String,
-        required: true,
-        enum : [
-            "meditation",
-            "exercise",
-            "walking",
-            "reading",
-            "journaling",
-            "therapy"
-        ],
+      type: String,
+      required: true,
+      enum: [
+        "meditation",
+        "exercise",
+        "walking",
+        "reading",
+        "journaling",
+        "therapy",
+      ],
     },
     name: {
-        type:String,
-        required:true,
+      type: String,
+      required: true,
     },
     description: {
-        type:String,
+      type: String,
     },
     duration: {
-        type:Number,
-        min: 0,
+      type: Number,
+      min: 0,
     },
     timestamp: {
-        type:Date,
-        default:Date.now()
+      type: Date,
+      default: Date.now,
     },
-},
-{
+  },
+  {
     timestamps: true,
-}
+  }
 );
 
-ActivitySchema.index({userId: 1, timestamp: -1})
+// Index for efficient querying
+activitySchema.index({ userId: 1, timestamp: -1 });
 
-export const Activity = mongoose.model<IActivity>("Activity",ActivitySchema)
+export const Activity = mongoose.model<IActivity>("Activity", activitySchema);
