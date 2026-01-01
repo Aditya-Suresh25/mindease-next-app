@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import { ChatSession, IChatSession } from "../models/ChatSession";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { v4 as uuidv4 } from "uuid";
@@ -9,25 +9,36 @@ import { InngestSessionResponse, InngestEvent } from "../types/inngest";
 import { Types } from "mongoose";
 
 // Initialize Gemini API
-const genAI = new GoogleGenerativeAI(
-  process.env.GEMINI_API_KEY || "AIzaSyBCBz3wQu9Jjd_icCDZf-17CUO_O8IynwI"
-);
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+
+export const getAllSessions = async (req: any, res: any) => {
+  try {
+    const userId = req.user._id;
+    const sessions = await ChatSession.find({ userId }).sort({ updatedAt: -1 });
+    res.json(sessions);
+  } catch (error) {
+    console.error('Error fetching sessions:', error);
+    res.status(500).json({ error: 'Failed to fetch sessions' });
+  }
+};
 
 // Create a new chat session
-export const createChatSession = async (req: Request, res: Response) => {
+export const createChatSession = async (req: any, res: any) => {
   try {
-    // Check if user is authenticated
     if (!req.user || !req.user.id) {
-      return res
-        .status(401)
-        .json({ message: "Unauthorized - User not authenticated" });
+      return res.status(401).json({ message: "Unauthorized" });
     }
 
     const userId = new Types.ObjectId(req.user.id);
-    const user = await User.findById(userId);
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+    // If an active session already exists for this user, return it instead of creating a duplicate
+    const existingSession = await ChatSession.findOne({ userId, status: "active" });
+    if (existingSession) {
+      return res.status(200).json({
+        message: "Existing active session returned",
+        sessionId: existingSession.sessionId,
+        existing: true,
+      });
     }
 
     // Generate a unique sessionId
@@ -46,6 +57,7 @@ export const createChatSession = async (req: Request, res: Response) => {
     res.status(201).json({
       message: "Chat session created successfully",
       sessionId: session.sessionId,
+      existing: false,
     });
   } catch (error) {
     logger.error("Error creating chat session:", error);
@@ -55,6 +67,31 @@ export const createChatSession = async (req: Request, res: Response) => {
     });
   }
 };
+
+// ...existing code...
+
+export const deleteChatSession = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = new Types.ObjectId(req.user.id);
+
+    const session = await ChatSession.findOne({ sessionId: id });
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+
+    if (session.userId.toString() !== userId.toString()) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    await ChatSession.deleteOne({ sessionId: id });
+    res.json({ message: "Chat session deleted successfully" });
+  } catch (error) {
+    logger.error("Error deleting chat session:", error);
+    res.status(500).json({ message: "Error deleting chat session" });
+  }
+};
+
 
 // Send a message in the chat session
 export const sendMessage = async (req: Request, res: Response) => {
@@ -110,7 +147,7 @@ export const sendMessage = async (req: Request, res: Response) => {
     await inngest.send(event);
 
     // Process the message directly using Gemini
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.-flash" });
 
     // Analyze the message
     const analysisPrompt = `Analyze this therapy message and provide insights. Return ONLY a valid JSON object with no markdown formatting or additional text.
@@ -129,14 +166,27 @@ export const sendMessage = async (req: Request, res: Response) => {
       "progressIndicators": ["string"]
     }`;
 
-    const analysisResult = await model.generateContent(analysisPrompt);
-    const analysisText = analysisResult.response.text().trim();
-    const cleanAnalysisText = analysisText
-      .replace(/```json\n|\n```/g, "")
-      .trim();
-    const analysis = JSON.parse(cleanAnalysisText);
+    let analysis: any = null;
+    try {
+      const analysisResult = await model.generateContent(analysisPrompt);
+      const analysisText = analysisResult.response.text().trim();
+      const cleanAnalysisText = analysisText
+        .replace(/```json\n|\n```/g, "")
+        .trim();
+      analysis = JSON.parse(cleanAnalysisText);
 
-    logger.info("Message analysis:", analysis);
+      logger.info("Message analysis:", analysis);
+    } catch (aiError: any) {
+      logger.error("AI analysis failed:", aiError);
+      const msg = aiError?.message || String(aiError);
+      if (/quota|Too Many Requests|429|exceeded/i.test(msg)) {
+        return res.status(429).json({
+          message: "AI quota exceeded. Please try again later.",
+          error: msg,
+        });
+      }
+      return res.status(500).json({ message: "AI analysis failed", error: msg });
+    }
 
     // Generate therapeutic response
     const responsePrompt = `${event.data.systemPrompt}
@@ -154,8 +204,22 @@ export const sendMessage = async (req: Request, res: Response) => {
     4. Maintains professional boundaries
     5. Considers safety and well-being`;
 
-    const responseResult = await model.generateContent(responsePrompt);
-    const response = responseResult.response.text().trim();
+    let response: string;
+    try {
+      const responseResult = await model.generateContent(responsePrompt);
+      response = responseResult.response.text().trim();
+      logger.info("Generated response:", response);
+    } catch (aiError: any) {
+      logger.error("AI response generation failed:", aiError);
+      const msg = aiError?.message || String(aiError);
+      if (/quota|Too Many Requests|429|exceeded/i.test(msg)) {
+        return res.status(429).json({
+          message: "AI quota exceeded. Please try again later.",
+          error: msg,
+        });
+      }
+      return res.status(500).json({ message: "AI response generation failed", error: msg });
+    }
 
     logger.info("Generated response:", response);
 

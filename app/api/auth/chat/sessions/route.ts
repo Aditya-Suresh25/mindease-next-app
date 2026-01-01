@@ -1,46 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_API_URL =
-  process.env.BACKEND_API_URL ||
-  "http://localhost:3001";
+const BACKEND_API_URL = process.env.BACKEND_API_URL || "http://localhost:3001";
 
 export async function POST(req: NextRequest) {
   try {
-    console.log("Creating new chat session...");
-    const authHeader = req.headers.get("Authorization");
-
-    if (!authHeader) {
-      return NextResponse.json(
-        { error: "Authorization header is required" },
-        { status: 401 }
-      );
-    }
-
-    const response = await fetch(`${BACKEND_API_URL}/chat/sessions`, {
+    const auth = req.headers.get("authorization") || "";
+    // forward body and auth header to backend
+    const resp = await fetch(`${BACKEND_API_URL}/chat/sessions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: authHeader,
+        Authorization: auth,
       },
+      body: await req.text(),
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      console.error("Failed to create chat session:", error);
-      return NextResponse.json(
-        { error: error.error || "Failed to create chat session" },
-        { status: response.status }
-      );
-    }
+    const data = await resp.text();
+    const status = resp.status;
+    const contentType = resp.headers.get("content-type") || "";
 
-    const data = await response.json();
-    console.log("Chat session created:", data);
-    return NextResponse.json(data);
+    if (contentType.includes("application/json")) {
+      return NextResponse.json(JSON.parse(data), { status });
+    }
+    return new NextResponse(data, { status, headers: { "Content-Type": contentType } });
   } catch (error) {
-    console.error("Error creating chat session:", error);
-    return NextResponse.json(
-      { error: "Failed to create chat session" },
-      { status: 500 }
-    );
+    console.error("Error creating chat session (proxy):", error);
+    return NextResponse.json({ error: "Failed to create session" }, { status: 500 });
   }
 }
+
+

@@ -37,3 +37,21 @@ export const createMood = async (
     next(error);
   }
 };
+
+// Get recent mood entries for the authenticated user
+export const getMoods = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.user?._id;
+    if (!userId) return res.status(401).json({ message: "User not authenticated" });
+
+    const moods = await Mood.find({ userId }).sort({ timestamp: -1 }).limit(50);
+
+    res.status(200).json({ success: true, data: moods });
+  } catch (error) {
+    next(error);
+  }
+};

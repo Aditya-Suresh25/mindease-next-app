@@ -1,16 +1,24 @@
 "use client"
 
 import { useState } from "react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, } from "../ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+} from "../ui/dialog"
 import { Input } from "../ui/input"
 import { Label } from "../ui/label"
-
 import {
-    Select,SelectContent,SelectItem,SelectTrigger,SelectValue
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select"
 import { DialogTitle } from "@radix-ui/react-dialog"
 import { Button } from "../ui/button"
-
+import { logActivity as apiLogActivity } from "@/lib/api/activity"
 
 const activityTypes = [
   { id: "meditation", name: "Meditation" },
@@ -19,50 +27,67 @@ const activityTypes = [
   { id: "reading", name: "Reading" },
   { id: "journaling", name: "Journaling" },
   { id: "therapy", name: "Therapy Session" },
-];
+]
 
 interface ActivityLoggerProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSuccess?: () => void
 }
 
-export function ActivityLogger({open,onOpenChange}:ActivityLoggerProps){
-    const [type,setType] = useState("");
-    const [name,setName] = useState("")
-    const [duration,setDuration] = useState("")
-    const [description,setDescription] = useState("")
-    const [isLoading,setIsLoading] = useState(false)
+export function ActivityLogger({
+  open,
+  onOpenChange,
+  onSuccess,
+}: ActivityLoggerProps) {
+  const [type, setType] = useState("")
+  const [name, setName] = useState("")
+  const [duration, setDuration] = useState("")
+  const [description, setDescription] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
 
-    const handleSubmit = (e:React.FormEvent) => {
-        setTimeout(() => {
-            console.log({
-                type,
-                name,
-                duration,
-                description
-            })
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
 
-            //Reset fields
-            setType("")
-            setName("")
-            setDuration("")
-            setDescription("")
-            setIsLoading(false)
+    try {
+      const payload = {
+        type,
+        name,
+        description,
+        duration: duration ? Number(duration) : undefined,
+      }
 
-            alert("Alert logged (mock)!")
-            onOpenChange(false) //Close modal
-        },1000)
+      await apiLogActivity(payload)
+
+      // Reset fields
+      setType("")
+      setName("")
+      setDuration("")
+      setDescription("")
+
+      onSuccess?.()          // notify dashboard
+      onOpenChange(false)    // close modal
+    } catch (err) {
+      console.error("Failed to log activity:", err)
+      alert("Failed to log activity. Please try again.")
+    } finally {
+      setIsLoading(false)
     }
+  }
 
-    return(
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Log Activity</DialogTitle>
-                    <DialogDescription>Record your wellness activity</DialogDescription>
-                </DialogHeader>
-                <form action="" onSubmit={handleSubmit}>
-                     <div className="space-y-2">
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Log Activity</DialogTitle>
+          <DialogDescription>
+            Record your wellness activity
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
             <Label>Activity Type</Label>
             <Select value={type} onValueChange={setType}>
               <SelectTrigger>
@@ -104,13 +129,22 @@ export function ActivityLogger({open,onOpenChange}:ActivityLoggerProps){
               onChange={(e) => setDescription(e.target.value)}
               placeholder="How did it go?"
             />
-            <div className="flex justify-end gap-2">
-            <Button type="button" variant={"ghost"}>Cancel</Button>
-            <Button type="submit" disabled>Save Activity</Button>
           </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Saving..." : "Save Activity"}
+            </Button>
           </div>
-                </form>
-            </DialogContent>
-        </Dialog>
-    )
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
 }

@@ -40,22 +40,18 @@ export interface ApiResponse {
   };
 }
 
-const API_BASE =
-  process.env.BACKEND_API_URL ||
-  "https://ai-therapist-agent-backend.onrender.com";
-
-// Helper function to get auth headers
-const getAuthHeaders = () => {
-  const token = localStorage.getItem("token");
-  return {
-    "Content-Type": "application/json",
-    Authorization: token ? `Bearer ${token}` : "",
-  };
-};
+import { API_BASE, getAuthHeaders } from "./base";
 
 export const createChatSession = async (): Promise<string> => {
   try {
     console.log("Creating new chat session...");
+    const token = localStorage.getItem("token");
+    console.log("Token exists:", !!token);
+
+    if (!token) {
+      throw new Error("No authentication token found. Please log in first.");
+    }
+
     const response = await fetch(`${API_BASE}/chat/sessions`, {
       method: "POST",
       headers: getAuthHeaders(),
@@ -64,7 +60,9 @@ export const createChatSession = async (): Promise<string> => {
     if (!response.ok) {
       const error = await response.json();
       console.error("Failed to create chat session:", error);
-      throw new Error(error.error || "Failed to create chat session");
+      throw new Error(
+        error.message || error.error || "Failed to create chat session"
+      );
     }
 
     const data = await response.json();
@@ -90,11 +88,42 @@ export const sendChatMessage = async (
         body: JSON.stringify({ message }),
       }
     );
-
     if (!response.ok) {
-      const error = await response.json();
-      console.error("Failed to send message:", error);
-      throw new Error(error.error || "Failed to send message");
+      const status = response.status;
+      const error = await response.json().catch(() => ({}));
+      console.error("Failed to send message:", status, error);
+
+      // If AI quota/rate-limit, return a friendly fallback response instead of throwing
+      if (status === 429 || /quota|too many requests|exceeded/i.test(String(error?.message || ""))) {
+        const retryAfter = response.headers.get("retry-after") || error?.retryDelay || null;
+        const fallback: ApiResponse = {
+          message: "AI quota exceeded. Returning fallback response.",
+          response:
+            "I hear you — that sounds really frustrating. It can help to try a short grounding exercise: take three deep breaths, notice five things you can see, four things you can touch, three things you can hear. If you'd like, we can continue when the service is available.",
+          analysis: {
+            emotionalState: "distressed",
+            themes: ["attention", "concentration"],
+            riskLevel: 0,
+            recommendedApproach: "grounding-exercise",
+            progressIndicators: [],
+          },
+          metadata: {
+            technique: "grounding",
+            goal: "stabilize_attention",
+            progress: [],
+          },
+        };
+
+        // attach retry info if available
+        (fallback as any).retryAfter = retryAfter;
+        return fallback;
+      }
+
+      // For other errors, throw with status and body
+      const err = new Error(error.message || error.error || "Failed to send message");
+      (err as any).status = status;
+      (err as any).body = error;
+      throw err;
     }
 
     const data = await response.json();
@@ -148,6 +177,13 @@ export const getChatHistory = async (
 export const getAllChatSessions = async (): Promise<ChatSession[]> => {
   try {
     console.log("Fetching all chat sessions...");
+    const token = localStorage.getItem("token");
+    console.log("Token exists:", !!token);
+
+    if (!token) {
+      throw new Error("No authentication token found. Please log in first.");
+    }
+
     const response = await fetch(`${API_BASE}/chat/sessions`, {
       headers: getAuthHeaders(),
     });
@@ -155,7 +191,9 @@ export const getAllChatSessions = async (): Promise<ChatSession[]> => {
     if (!response.ok) {
       const error = await response.json();
       console.error("Failed to fetch chat sessions:", error);
-      throw new Error(error.error || "Failed to fetch chat sessions");
+      throw new Error(
+        error.message || error.error || "Failed to fetch chat sessions"
+      );
     }
 
     const data = await response.json();
@@ -181,3 +219,18 @@ export const getAllChatSessions = async (): Promise<ChatSession[]> => {
     throw error;
   }
 };
+
+export async function deleteChatSessionApi(sessionId: string) {
+  const res = await fetch(`${API_BASE}/chat/sessions/${sessionId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.message || "Failed to delete chat session");
+  }
+
+  return res.json();
+}
+

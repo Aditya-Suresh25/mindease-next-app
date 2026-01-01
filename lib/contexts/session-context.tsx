@@ -7,6 +7,7 @@ interface User {
   _id: string;
   name: string;
   email: string;
+  avatar?: string;
 }
 
 interface SessionContextType {
@@ -24,13 +25,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  const generateAvatar = (name: string) => {
+    return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
+      name
+    )}`;
+  };
+
   const checkSession = async () => {
     try {
       const token = localStorage.getItem("token");
-      console.log(
-        "SessionContext: Token from localStorage:",
-        token ? "exists" : "not found"
-      );
 
       if (!token) {
         setUser(null);
@@ -38,31 +41,30 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      console.log("SessionContext: Fetching user data...");
-      const response = await fetch("/api/auth/me", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const { API_BASE, getAuthHeaders } = await import("@/lib/api/base");
+
+      const response = await fetch(`${API_BASE}/auth/me`, {
+        headers: getAuthHeaders(),
       });
 
-      console.log("SessionContext: Response status:", response.status);
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log("SessionContext: User data received:", data);
-        const userData = data.user;
-        const { password, ...safeUserData } = userData;
-        setUser(safeUserData);
-        console.log("SessionContext: User state updated:", safeUserData);
-      } else {
-        console.log("SessionContext: Failed to get user data");
-        setUser(null);
+      if (!response.ok) {
         localStorage.removeItem("token");
+        setUser(null);
+        return;
       }
-    } catch (error) {
-      console.error("SessionContext: Error checking session:", error);
-      setUser(null);
+
+      const data = await response.json();
+      const userData = data.user;
+
+      setUser({
+        _id: userData._id,
+        name: userData.name,
+        email: userData.email,
+        avatar: userData.avatar || generateAvatar(userData.name),
+      });
+    } catch {
       localStorage.removeItem("token");
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -72,15 +74,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     try {
       const token = localStorage.getItem("token");
       if (token) {
-        await fetch("/api/auth/logout", {
+        const { API_BASE, getAuthHeaders } = await import("@/lib/api/base");
+        await fetch(`${API_BASE}/auth/logout`, {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: getAuthHeaders(),
         });
       }
-    } catch (error) {
-      console.error("Logout error:", error);
     } finally {
       localStorage.removeItem("token");
       setUser(null);
@@ -89,7 +88,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    console.log("SessionContext: Initial check");
     checkSession();
   }, []);
 
@@ -110,8 +108,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
 export function useSession() {
   const context = useContext(SessionContext);
-  if (context === undefined) {
-    throw new Error("useSession must be used within a SessionProvider");
+  if (!context) {
+    throw new Error("useSession must be used within SessionProvider");
   }
   return context;
 }

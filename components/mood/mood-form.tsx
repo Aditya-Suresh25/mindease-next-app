@@ -3,17 +3,21 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { Textarea } from "@/components/ui/textarea"; // ✅ Import Textarea
+import { Label } from "@/components/ui/label"; // ✅ Import Label for accessibility
 import { Loader2 } from "lucide-react";
 import { useSession } from "@/lib/contexts/session-context";
+import { trackMood } from "@/lib/api/mood";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner"; // ✅ import sonner
+import { toast } from "sonner";
 
 interface MoodFormProps {
-  onSuccess?: () => void; // called after mood is saved
+  onSuccess?: () => void;
 }
 
 export function MoodForm({ onSuccess }: MoodFormProps) {
   const [moodScore, setMoodScore] = useState(50);
+  const [notes, setNotes] = useState(""); // ✅ New state for notes
   const [isLoading, setIsLoading] = useState(false);
   const { user, isAuthenticated, loading } = useSession();
   const router = useRouter();
@@ -38,25 +42,14 @@ export function MoodForm({ onSuccess }: MoodFormProps) {
 
     try {
       setIsLoading(true);
-      const token = localStorage.getItem("token");
-
-      const response = await fetch("/api/mood", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ score: moodScore }),
+      // ✅ Included notes in the API call
+      await trackMood({ 
+        score: moodScore, 
+        note: notes.trim() 
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to track mood");
-      }
-
-      toast.success("Mood tracked successfully! Your mood has been recorded.");
-
-      onSuccess?.(); // close modal
+      
+      toast.success("Mood tracked successfully!");
+      onSuccess?.(); 
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to track mood");
     } finally {
@@ -96,12 +89,31 @@ export function MoodForm({ onSuccess }: MoodFormProps) {
           min={0}
           max={100}
           step={1}
-          className="py-4"
+          className="py-2"
+        />
+      </div>
+
+      {/* ✅ Notes Input Section */}
+      <div className="space-y-2">
+        <Label htmlFor="mood-notes" className="text-sm font-medium">
+          Add a note (optional)
+        </Label>
+        <Textarea
+          id="mood-notes"
+          placeholder="What's making you feel this way?"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="resize-none"
+          rows={3}
         />
       </div>
 
       {/* Submit button */}
-      <Button className="w-full" onClick={handleSubmit} disabled={isLoading || loading}>
+      <Button 
+        className="w-full" 
+        onClick={handleSubmit} 
+        disabled={isLoading || loading}
+      >
         {isLoading ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

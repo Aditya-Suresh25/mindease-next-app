@@ -32,10 +32,9 @@ export function useSession() {
       }
 
       console.log("useSession: Fetching user data...");
-      const response = await fetch("/api/auth/me", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const { API_BASE, getAuthHeaders } = await import("@/lib/api/base");
+      const response = await fetch(`${API_BASE}/auth/me`, {
+        headers: getAuthHeaders(),
       });
 
       console.log("useSession: Response status:", response.status);
@@ -65,11 +64,10 @@ export function useSession() {
     try {
       const token = localStorage.getItem("token");
       if (token) {
-        await fetch("/api/auth/logout", {
+        const { API_BASE, getAuthHeaders } = await import("@/lib/api/base");
+        await fetch(`${API_BASE}/auth/logout`, {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: getAuthHeaders(),
         });
       }
     } catch (error) {

@@ -16,18 +16,21 @@ interface MoodStats {
   }>;
 }
 
+interface MoodHistoryParams {
+  startDate: string;
+  endDate: string;
+}
+
+
+
+import { API_BASE, getAuthHeaders } from "./base";
+
 export async function trackMood(
   data: MoodEntry
 ): Promise<{ success: boolean; data: any }> {
-  const token = localStorage.getItem("token");
-  if (!token) throw new Error("Not authenticated");
-
-  const response = await fetch("/api/mood", {
+  const response = await fetch(`${API_BASE}/api/mood`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
 
@@ -39,28 +42,33 @@ export async function trackMood(
   return response.json();
 }
 
-export async function getMoodHistory(params?: {
-  startDate?: string;
-  endDate?: string;
-  limit?: number;
-}): Promise<{ success: boolean; data: any[] }> {
-  const token = localStorage.getItem("token");
+export async function getMoodHistory(
+  params: MoodHistoryParams
+): Promise<{ success: boolean; data: any[] }> {
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
   if (!token) throw new Error("Not authenticated");
 
-  const queryParams = new URLSearchParams();
-  if (params?.startDate) queryParams.append("startDate", params.startDate);
-  if (params?.endDate) queryParams.append("endDate", params.endDate);
-  if (params?.limit) queryParams.append("limit", params.limit.toString());
+  const { API_BASE, getAuthHeaders } = await import("./base");
 
-  const response = await fetch(`/api/mood/history?${queryParams.toString()}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  const query = new URLSearchParams({
+    startDate: params.startDate,
+    endDate: params.endDate,
+  }).toString();
+
+  const response = await fetch(
+    `${API_BASE}/api/mood?${query}`,
+    {
+      method: "GET",
+      headers: getAuthHeaders(),
+    }
+  );
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || "Failed to fetch mood history");
+    const text = await response.text();
+    console.error("Mood history error:", text);
+    throw new Error("Failed to fetch mood history");
   }
 
   return response.json();
@@ -72,13 +80,8 @@ export async function getMoodStats(
   success: boolean;
   data: MoodStats;
 }> {
-  const token = localStorage.getItem("token");
-  if (!token) throw new Error("Not authenticated");
-
-  const response = await fetch(`/api/mood/stats?period=${period}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+  const response = await fetch(`${API_BASE}/api/mood/stats?period=${period}`, {
+    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {

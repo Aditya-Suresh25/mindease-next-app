@@ -52,3 +52,21 @@ export const logActivity = async (
     next(error);
   }
 };
+
+export const getActivities = async (req:Request, res:Response) => {
+  try {
+    const activities = await Activity.find({
+      userId: req.user.id,
+    }).sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: activities,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch activities",
+    });
+  }
+};

@@ -3,736 +3,471 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { deleteChatSessionApi } from "@/lib/api/chat";
 import {
   Send,
   Bot,
   User,
   Loader2,
-  Sparkles,
-  X,
-  Trophy,
-  Star,
-  Clock,
-  Smile,
   PlusCircle,
   MessageSquare,
+  Trash2,
+  Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
-import { Variants, easeInOut } from "framer-motion";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { BreathingGame } from "@/components/games/breathing-games";
-import { ZenGarden } from "@/components/games/zen-garden";
-import { ForestGame } from "@/components/games/forest-game";
-import { OceanWaves } from "@/components/games/ocean-waves";
 import { Badge } from "@/components/ui/badge";
 import {
   createChatSession,
   sendChatMessage,
   getChatHistory,
-  ChatMessage,
   getAllChatSessions,
+  ChatMessage,
   ChatSession,
 } from "@/lib/api/chat";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
-import { Separator } from "@/components/ui/separator";
-
-interface SuggestedQuestion {
-  id: string;
-  text: string;
-}
-
-interface StressPrompt {
-  trigger: string;
-  activity: {
-    type: "breathing" | "garden" | "forest" | "waves";
-    title: string;
-    description: string;
-  };
-}
-
-interface ApiResponse {
-  message: string;
-  metadata: {
-    technique: string;
-    goal: string;
-    progress: any[];
-  };
-}
-
-const SUGGESTED_QUESTIONS = [
-  { text: "How can I manage my anxiety better?" },
-  { text: "I've been feeling overwhelmed lately" },
-  { text: "Can we talk about improving sleep?" },
-  { text: "I need help with work-life balance" },
-];
-
-const glowAnimation: Variants = {
-  initial: { opacity: 0.5, scale: 1 },
-  animate: {
-    opacity: [0.5, 1, 0.5],
-    scale: [1, 1.05, 1],
-    transition: {
-      duration: 3,
-      repeat: Infinity,
-      ease: easeInOut, // ✅ use the imported easing function
-    },
-  },
-};
-
-const COMPLETION_THRESHOLD = 5;
+import { 
+  Sheet, 
+  SheetContent, 
+  SheetDescription, 
+  SheetHeader, 
+  SheetTitle, 
+  SheetTrigger 
+} from "@/components/ui/sheet";
 
 export default function TherapyPage() {
   const params = useParams();
   const router = useRouter();
+
   const [message, setMessage] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [mounted, setMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [stressPrompt, setStressPrompt] = useState<StressPrompt | null>(null);
-  const [showActivity, setShowActivity] = useState(false);
-  const [isChatPaused, setIsChatPaused] = useState(false);
-  const [showNFTCelebration, setShowNFTCelebration] = useState(false);
-  const [isCompletingSession, setIsCompletingSession] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(
-    params.sessionId as string
-  );
   const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(params.sessionId as string);
 
-  const handleNewSession = async () => {
-    try {
-      setIsLoading(true);
-      const newSessionId = await createChatSession();
-      console.log("New session created:", newSessionId);
+  const [isTyping, setIsTyping] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
-      // Update sessions list immediately
-      const newSession: ChatSession = {
-        sessionId: newSessionId,
-        messages: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-      // Update all state in one go
-      setSessions((prev) => [newSession, ...prev]);
-      setSessionId(newSessionId);
-      setMessages([]);
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) router.push("/login");
+    else setMounted(true);
+  }, [router]);
 
-      // Update URL without refresh
-      window.history.pushState({}, "", `/therapy/${newSessionId}`);
-
-      // Force a re-render of the chat area
-      setIsLoading(false);
-    } catch (error) {
-      console.error("Failed to create new session:", error);
-      setIsLoading(false);
+  // Auto-resize textarea as user types
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 160) + "px";
     }
-  };
+  }, [message]);
 
-  // Initialize chat session and load history
   useEffect(() => {
     const initChat = async () => {
+      setIsLoading(true);
       try {
-        setIsLoading(true);
         if (!sessionId || sessionId === "new") {
-          console.log("Creating new chat session...");
           const newSessionId = await createChatSession();
-          console.log("New session created:", newSessionId);
           setSessionId(newSessionId);
           window.history.pushState({}, "", `/therapy/${newSessionId}`);
         } else {
-          console.log("Loading existing chat session:", sessionId);
-          try {
-            const history = await getChatHistory(sessionId);
-            console.log("Loaded chat history:", history);
-            if (Array.isArray(history)) {
-              const formattedHistory = history.map((msg) => ({
-                ...msg,
-                timestamp: new Date(msg.timestamp),
-              }));
-              console.log("Formatted history:", formattedHistory);
-              setMessages(formattedHistory);
-            } else {
-              console.error("History is not an array:", history);
-              setMessages([]);
-            }
-          } catch (historyError) {
-            console.error("Error loading chat history:", historyError);
-            setMessages([]);
+          const history = await getChatHistory(sessionId);
+          if (Array.isArray(history)) {
+            setMessages(history.map(msg => ({ ...msg, timestamp: new Date(msg.timestamp) })));
           }
         }
-      } catch (error) {
-        console.error("Failed to initialize chat:", error);
-        setMessages([
-          {
-            role: "assistant",
-            content:
-              "I apologize, but I'm having trouble loading the chat session. Please try refreshing the page.",
-            timestamp: new Date(),
-          },
-        ]);
+      } catch {
+        setMessages([]);
       } finally {
         setIsLoading(false);
       }
     };
-
     initChat();
   }, [sessionId]);
 
-  // Load all chat sessions
   useEffect(() => {
     const loadSessions = async () => {
       try {
-        const allSessions = await getAllChatSessions();
-        setSessions(allSessions);
-      } catch (error) {
-        console.error("Failed to load sessions:", error);
-      }
+        const all = await getAllChatSessions();
+        setSessions(all);
+      } catch {}
     };
-
     loadSessions();
   }, [messages]);
 
   const scrollToBottom = () => {
-    if (messagesEndRef.current) {
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+  useEffect(scrollToBottom, [messages, isTyping]);
+
+  const handleDeleteSession = async (e: React.MouseEvent, deleteId: string) => {
+    e.stopPropagation();
+    if (!confirm("Delete this chat session?")) return;
+    try {
+      await deleteChatSessionApi(deleteId);
+      setSessions(prev => prev.filter(s => s.sessionId !== deleteId));
+      if (deleteId === sessionId) {
+        setSessionId(null);
+        setMessages([]);
+        router.push("/therapy");
+      }
+    } catch (err) {
+      console.error("Delete failed", err);
     }
   };
 
-  useEffect(() => {
-    if (!isTyping) {
-      scrollToBottom();
-    }
-  }, [messages, isTyping]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form submitted");
-    const currentMessage = message.trim();
-    console.log("Current message:", currentMessage);
-    console.log("Session ID:", sessionId);
-    console.log("Is typing:", isTyping);
-    console.log("Is chat paused:", isChatPaused);
+    if (!message.trim() || isTyping || !sessionId) return;
 
-    if (!currentMessage || isTyping || isChatPaused || !sessionId) {
-      console.log("Submission blocked:", {
-        noMessage: !currentMessage,
-        isTyping,
-        isChatPaused,
-        noSessionId: !sessionId,
-      });
-      return;
-    }
-
+    const userMsg: ChatMessage = { role: "user", content: message, timestamp: new Date() };
+    setMessages(prev => [...prev, userMsg]);
     setMessage("");
     setIsTyping(true);
 
     try {
-      // Add user message
-      const userMessage: ChatMessage = {
-        role: "user",
-        content: currentMessage,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, userMessage]);
-
-      // Check for stress signals
-      const stressCheck = detectStressSignals(currentMessage);
-      if (stressCheck) {
-        setStressPrompt(stressCheck);
-        setIsTyping(false);
-        return;
-      }
-
-      console.log("Sending message to API...");
-      // Send message to API
-      const response = await sendChatMessage(sessionId, currentMessage);
-      console.log("Raw API response:", response);
-
-      // Parse the response if it's a string
-      const aiResponse =
-        typeof response === "string" ? JSON.parse(response) : response;
-      console.log("Parsed AI response:", aiResponse);
-
-      // Add AI response with metadata
-      const assistantMessage: ChatMessage = {
+      const response = await sendChatMessage(sessionId, userMsg.content);
+      const parsed = typeof response === "string" ? JSON.parse(response) : response;
+      setMessages(prev => [...prev, {
         role: "assistant",
-        content:
-          aiResponse.response ||
-          aiResponse.message ||
-          "I'm here to support you. Could you tell me more about what's on your mind?",
+        content: parsed.response || parsed.message || "I'm here to listen.",
         timestamp: new Date(),
-        metadata: {
-          analysis: aiResponse.analysis || {
-            emotionalState: "neutral",
-            riskLevel: 0,
-            themes: [],
-            recommendedApproach: "supportive",
-            progressIndicators: [],
-          },
-          technique: aiResponse.metadata?.technique || "supportive",
-          goal: aiResponse.metadata?.currentGoal || "Provide support",
-          progress: aiResponse.metadata?.progress || {
-            emotionalState: "neutral",
-            riskLevel: 0,
-          },
-        },
-      };
-
-      console.log("Created assistant message:", assistantMessage);
-
-      // Add the message immediately
-      setMessages((prev) => [...prev, assistantMessage]);
-      setIsTyping(false);
-      scrollToBottom();
-    } catch (error) {
-      console.error("Error in chat:", error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content:
-            "I apologize, but I'm having trouble connecting right now. Please try again in a moment.",
-          timestamp: new Date(),
-        },
-      ]);
-      setIsTyping(false);
-    }
-  };
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted || isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
-  }
-
-  const detectStressSignals = (message: string): StressPrompt | null => {
-    const stressKeywords = [
-      "stress",
-      "anxiety",
-      "worried",
-      "panic",
-      "overwhelmed",
-      "nervous",
-      "tense",
-      "pressure",
-      "can't cope",
-      "exhausted",
-    ];
-
-    const lowercaseMsg = message.toLowerCase();
-    const foundKeyword = stressKeywords.find((keyword) =>
-      lowercaseMsg.includes(keyword)
-    );
-
-    if (foundKeyword) {
-      const activities = [
-        {
-          type: "breathing" as const,
-          title: "Breathing Exercise",
-          description:
-            "Follow calming breathing exercises with visual guidance",
-        },
-        {
-          type: "garden" as const,
-          title: "Zen Garden",
-          description: "Create and maintain your digital peaceful space",
-        },
-        {
-          type: "forest" as const,
-          title: "Mindful Forest",
-          description: "Take a peaceful walk through a virtual forest",
-        },
-        {
-          type: "waves" as const,
-          title: "Ocean Waves",
-          description: "Match your breath with gentle ocean waves",
-        },
-      ];
-
-      return {
-        trigger: foundKeyword,
-        activity: activities[Math.floor(Math.random() * activities.length)],
-      };
-    }
-
-    return null;
-  };
-
-  const handleSuggestedQuestion = async (text: string) => {
-    if (!sessionId) {
-      const newSessionId = await createChatSession();
-      setSessionId(newSessionId);
-      router.push(`/therapy/${newSessionId}`);
-    }
-
-    setMessage(text);
-    setTimeout(() => {
-      const event = new Event("submit") as unknown as React.FormEvent;
-      handleSubmit(event);
-    }, 0);
-  };
-
-  const handleCompleteSession = async () => {
-    if (isCompletingSession) return;
-    setIsCompletingSession(true);
-    try {
-      setShowNFTCelebration(true);
-    } catch (error) {
-      console.error("Error completing session:", error);
-    } finally {
-      setIsCompletingSession(false);
-    }
-  };
-
-  const handleSessionSelect = async (selectedSessionId: string) => {
-    if (selectedSessionId === sessionId) return;
-
-    try {
-      setIsLoading(true);
-      const history = await getChatHistory(selectedSessionId);
-      if (Array.isArray(history)) {
-        const formattedHistory = history.map((msg) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp),
-        }));
-        setMessages(formattedHistory);
-        setSessionId(selectedSessionId);
-        window.history.pushState({}, "", `/therapy/${selectedSessionId}`);
+      }]);
+    } catch (err: any) {
+      let errMsg = "I'm having trouble responding right now. Please try again in a moment.";
+      const status = err?.status || 500;
+      if (err?.body?.message) errMsg = err.body.message;
+      
+      if (status === 429) {
+        errMsg = "I'm temporarily unavailable due to high demand. Please wait a moment and try again.";
       }
-    } catch (error) {
-      console.error("Failed to load session:", error);
+
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: errMsg,
+        timestamp: new Date(),
+      }]);
     } finally {
-      setIsLoading(false);
+      setIsTyping(false);
     }
   };
 
-  return (
-    <div className="relative max-w-7xl mx-auto px-4">
-      <div className="flex h-[calc(100vh-4rem)] mt-20 gap-6">
-        {/* Sidebar with chat history */}
-        <div className="w-80 flex flex-col border-r bg-muted/30">
-          <div className="p-4 border-b">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Chat Sessions</h2>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleNewSession}
-                className="hover:bg-primary/10"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <PlusCircle className="w-5 h-5" />
-                )}
-              </Button>
-            </div>
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-2"
-              onClick={handleNewSession}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <MessageSquare className="w-4 h-4" />
-              )}
-              New Session
-            </Button>
+  const SidebarContent = () => (
+    <div className="flex flex-col h-full bg-gradient-to-b from-background via-background to-muted/20">
+      <div className="p-4 border-b border-border/50">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              Chat History
+            </h2>
+            <p className="text-xs text-muted-foreground/70 mt-1">
+              {sessions.length} session{sessions.length !== 1 ? 's' : ''}
+            </p>
           </div>
-
-          <ScrollArea className="flex-1 p-4">
-            <div className="space-y-4">
-              {sessions.map((session) => (
-                <div
-                  key={session.sessionId}
-                  className={cn(
-                    "p-3 rounded-lg text-sm cursor-pointer hover:bg-primary/5 transition-colors",
-                    session.sessionId === sessionId
-                      ? "bg-primary/10 text-primary"
-                      : "bg-secondary/10"
-                  )}
-                  onClick={() => handleSessionSelect(session.sessionId)}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <MessageSquare className="w-4 h-4" />
-                    <span className="font-medium">
-                      {session.messages[0]?.content.slice(0, 30) || "New Chat"}
-                    </span>
-                  </div>
-                  <p className="line-clamp-2 text-muted-foreground">
-                    {session.messages[session.messages.length - 1]?.content ||
-                      "No messages yet"}
-                  </p>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs text-muted-foreground">
-                      {session.messages.length} messages
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {(() => {
-                        try {
-                          const date = new Date(session.updatedAt);
-                          if (isNaN(date.getTime())) {
-                            return "Just now";
-                          }
-                          return formatDistanceToNow(date, {
-                            addSuffix: true,
-                          });
-                        } catch (error) {
-                          return "Just now";
-                        }
-                      })()}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={async () => {
+              const id = await createChatSession();
+              setSessionId(id);
+              setMessages([]);
+              window.history.pushState({}, "", `/therapy/${id}`);
+            }}
+            aria-label="Start new chat session"
+            className="h-9 w-9 hover:bg-primary/10 hover:text-primary transition-colors"
+          >
+            <PlusCircle className="w-5 h-5" />
+          </Button>
         </div>
+      </div>
 
-        {/* Main chat area */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-background rounded-lg border">
-          {/* Chat header */}
-          <div className="p-4 border-b flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                <Bot className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="font-semibold">AI Therapist</h2>
-                <p className="text-sm text-muted-foreground">
-                  {messages.length} messages
-                </p>
-              </div>
+      <ScrollArea className="flex-1">
+        <div className="space-y-2 px-3 py-4">
+          {sessions.length === 0 ? (
+            <div className="text-center py-8 px-2">
+              <MessageSquare className="w-6 h-6 text-muted-foreground/50 mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground/70">No sessions yet</p>
             </div>
-          </div>
-
-          {messages.length === 0 ? (
-            // Welcome screen with suggested questions
-            <div className="flex-1 flex items-center justify-center p-4">
-              <div className="max-w-2xl w-full space-y-8">
-                <div className="text-center space-y-4">
-                  <div className="relative inline-flex flex-col items-center">
-                    <motion.div
-                      className="absolute inset-0 bg-primary/20 blur-2xl rounded-full"
-                      initial="initial"
-                      animate="animate"
-                      variants={glowAnimation}
-                    />
-                    <div className="relative flex items-center gap-2 text-2xl font-semibold">
-                      <div className="relative">
-                        <Sparkles className="w-6 h-6 text-primary" />
-                        <motion.div
-                          className="absolute inset-0 text-primary"
-                          initial="initial"
-                          animate="animate"
-                          variants={glowAnimation}
-                        >
-                          <Sparkles className="w-6 h-6" />
-                        </motion.div>
-                      </div>
-                      <span className="bg-gradient-to-r from-primary/90 to-primary bg-clip-text text-transparent">
-                        AI Therapist
-                      </span>
-                    </div>
-                    <p className="text-muted-foreground mt-2">
-                      How can I assist you today?
+          ) : (
+            sessions.map(session => (
+              <div
+                key={session.sessionId}
+                onClick={() => setSessionId(session.sessionId)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                        setSessionId(session.sessionId);
+                    }
+                }}
+                className={cn(
+                  "group relative w-full text-left p-3 rounded-lg transition-all duration-200 cursor-pointer",
+                  "border border-transparent hover:border-border/50",
+                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                  session.sessionId === sessionId
+                    ? "bg-primary/15 border-primary/30 shadow-sm"
+                    : "hover:bg-muted/30"
+                )}
+                aria-current={session.sessionId === sessionId ? "page" : undefined}
+                aria-label={`Chat session: ${session.messages[0]?.content.slice(0, 50) || 'New Session'}`}
+              >
+                <div className="flex items-start gap-3">
+                  <MessageSquare
+                    className={cn(
+                      "w-4 h-4 mt-0.5 shrink-0 transition-colors",
+                      session.sessionId === sessionId
+                        ? "text-primary"
+                        : "text-muted-foreground/60"
+                    )}
+                    aria-hidden="true"
+                  />
+                  <div className="flex-1 overflow-hidden min-w-0">
+                    <p className="text-sm font-medium truncate leading-tight">
+                      {session.messages[0]?.content.slice(0, 40) || "New Session"}
+                    </p>
+                    <p className="text-xs text-muted-foreground/70 mt-1">
+                      {formatDistanceToNow(new Date(session.updatedAt), {
+                        addSuffix: true,
+                      })}
                     </p>
                   </div>
                 </div>
 
-                <div className="grid gap-3 relative">
-                  <motion.div
-                    className="absolute -inset-4 bg-gradient-to-b from-primary/5 to-transparent blur-xl"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                  />
-                  {SUGGESTED_QUESTIONS.map((q, index) => (
-                    <motion.div
-                      key={q.text}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 + 0.5 }}
-                    >
-                      <Button
-                        variant="outline"
-                        className="w-full h-auto py-4 px-6 text-left justify-start hover:bg-muted/50 hover:border-primary/50 transition-all duration-300"
-                        onClick={() => handleSuggestedQuestion(q.text)}
-                      >
-                        {q.text}
-                      </Button>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : (
-            // Chat messages
-            <div className="flex-1 overflow-y-auto scroll-smooth">
-              <div className="max-w-3xl mx-auto">
-                <AnimatePresence initial={false}>
-                  {messages.map((msg) => (
-                    <motion.div
-                      key={msg.timestamp.toISOString()}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className={cn(
-                        "px-6 py-8",
-                        msg.role === "assistant"
-                          ? "bg-muted/30"
-                          : "bg-background"
-                      )}
-                    >
-                      <div className="flex gap-4">
-                        <div className="w-8 h-8 shrink-0 mt-1">
-                          {msg.role === "assistant" ? (
-                            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center ring-1 ring-primary/20">
-                              <Bot className="w-5 h-5" />
-                            </div>
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center">
-                              <User className="w-5 h-5" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 space-y-2 overflow-hidden min-h-[2rem]">
-                          <div className="flex items-center justify-between">
-                            <p className="font-medium text-sm">
-                              {msg.role === "assistant"
-                                ? "AI Therapist"
-                                : "You"}
-                            </p>
-                            {msg.metadata?.technique && (
-                              <Badge variant="secondary" className="text-xs">
-                                {msg.metadata.technique}
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="prose prose-sm dark:prose-invert leading-relaxed">
-                            <ReactMarkdown>{msg.content}</ReactMarkdown>
-                          </div>
-                          {msg.metadata?.goal && (
-                            <p className="text-xs text-muted-foreground mt-2">
-                              Goal: {msg.metadata.goal}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-
-                {isTyping && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="px-6 py-8 flex gap-4 bg-muted/30"
-                  >
-                    <div className="w-8 h-8 shrink-0">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center ring-1 ring-primary/20">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      </div>
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <p className="font-medium text-sm">AI Therapist</p>
-                      <p className="text-sm text-muted-foreground">Typing...</p>
-                    </div>
-                  </motion.div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-            </div>
-          )}
-
-          {/* Input area */}
-          <div className="border-t bg-background/50 backdrop-blur supports-[backdrop-filter]:bg-background/50 p-4">
-            <form
-              onSubmit={handleSubmit}
-              className="max-w-3xl mx-auto flex gap-4 items-end relative"
-            >
-              <div className="flex-1 relative group">
-                <textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder={
-                    isChatPaused
-                      ? "Complete the activity to continue..."
-                      : "Ask me anything..."
-                  }
-                  className={cn(
-                    "w-full resize-none rounded-2xl border bg-background",
-                    "p-3 pr-12 min-h-[48px] max-h-[200px]",
-                    "focus:outline-none focus:ring-2 focus:ring-primary/50",
-                    "transition-all duration-200",
-                    "placeholder:text-muted-foreground/70",
-                    (isTyping || isChatPaused) &&
-                      "opacity-50 cursor-not-allowed"
-                  )}
-                  rows={1}
-                  disabled={isTyping || isChatPaused}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSubmit(e);
-                    }
-                  }}
-                />
                 <Button
-                  type="submit"
                   size="icon"
-                  className={cn(
-                    "absolute right-1.5 bottom-3.5 h-[36px] w-[36px]",
-                    "rounded-xl transition-all duration-200",
-                    "bg-primary hover:bg-primary/90",
-                    "shadow-sm shadow-primary/20",
-                    (isTyping || isChatPaused || !message.trim()) &&
-                      "opacity-50 cursor-not-allowed",
-                    "group-hover:scale-105 group-focus-within:scale-105"
-                  )}
-                  disabled={isTyping || isChatPaused || !message.trim()}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleSubmit(e);
-                  }}
+                  variant="ghost"
+                  className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 h-8 w-8 transition-opacity"
+                  onClick={e => handleDeleteSession(e, session.sessionId)}
+                  aria-label={`Delete session`}
                 >
-                  <Send className="w-4 h-4" />
+                  <Trash2 className="w-3.5 h-3.5 text-destructive/70 hover:text-destructive" />
                 </Button>
               </div>
-            </form>
-            <div className="mt-2 text-xs text-center text-muted-foreground">
-              Press <kbd className="px-2 py-0.5 rounded bg-muted">Enter ↵</kbd>{" "}
-              to send,
-              <kbd className="px-2 py-0.5 rounded bg-muted ml-1">
-                Shift + Enter
-              </kbd>{" "}
-              for new line
+            ))
+          )}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+
+  if (!mounted || isLoading) {
+    return (
+      <main className="h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-10 h-10 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground animate-pulse">
+            Creating your safe space...
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <div className="flex h-screen bg-background text-foreground overflow-hidden pt-16 lg:pt-0">
+      <aside className="hidden lg:flex lg:flex-col w-80 border-r border-border/50 bg-muted/20">
+        <SidebarContent />
+      </aside>
+
+      <main className="flex-1 flex flex-col relative w-full bg-background lg:border-x border-border/50">
+        <header
+          className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-20"
+          role="banner"
+        >
+          <div className="flex items-center gap-3">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="lg:hidden h-9 w-9 hover:bg-muted"
+                  aria-label="Open chat history menu"
+                >
+                  <Menu className="w-5 h-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="p-0 w-80 bg-background">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Chat History</SheetTitle>
+                  <SheetDescription>
+                    View and manage your previous therapy sessions
+                  </SheetDescription>
+                </SheetHeader>
+                <SidebarContent />
+              </SheetContent>
+            </Sheet>
+
+            <div className="flex flex-col gap-0.5">
+              <h1 className="text-base md:text-lg font-semibold flex items-center gap-2 leading-tight">
+                <span
+                  className="w-2 h-2 rounded-full bg-green-500 animate-pulse"
+                  aria-hidden="true"
+                />
+                Therapy Assistant
+              </h1>
+              <p className="text-xs text-muted-foreground">Here to support your well-being</p>
             </div>
           </div>
-        </div>
-      </div>
+
+          <Badge
+            variant="outline"
+            className="hidden sm:flex text-xs font-normal"
+            aria-label="Connection status: encrypted"
+          >
+            Encrypted
+          </Badge>
+        </header>
+
+        <ScrollArea className="flex-1 overflow-hidden">
+          <section
+            className="flex flex-col px-4 md:px-6 py-6 max-w-4xl mx-auto w-full"
+            aria-live="polite"
+            aria-label="Chat messages"
+          >
+            {messages.length === 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col items-center justify-center min-h-[50vh] text-center space-y-6"
+              >
+                <div className="p-4 bg-primary/10 rounded-full ring-1 ring-primary/20">
+                  <Bot className="w-10 h-10 text-primary" aria-hidden="true" />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-2xl md:text-3xl font-semibold">How are you feeling today?</h2>
+                  <p className="text-muted-foreground max-w-sm text-sm md:text-base leading-relaxed">
+                    I'm here to listen without judgment and provide support. Share what's on your mind.
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
+            <AnimatePresence initial={false}>
+              {messages.map((msg, idx) => (
+                <motion.article
+                  key={idx}
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.3 }}
+                  className={cn("flex w-full my-3", msg.role === "user" ? "justify-end" : "justify-start")}
+                  role="article"
+                  aria-label={`${msg.role === 'user' ? 'Your message' : 'Assistant message'}`}
+                >
+                  <div
+                    className={cn(
+                      "flex gap-3 max-w-[85%] md:max-w-[70%] items-end",
+                      msg.role === "user" ? "flex-row-reverse" : "flex-row"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm border ring-1 ring-offset-1 ring-offset-background",
+                        msg.role === "user"
+                          ? "bg-primary ring-primary text-primary-foreground"
+                          : "bg-muted ring-border text-muted-foreground"
+                      )}
+                      aria-hidden="true"
+                    >
+                      {msg.role === "user" ? <User size={16} /> : <Bot size={16} />}
+                    </div>
+
+                    <div
+                      className={cn(
+                        "px-4 py-3 rounded-2xl shadow-sm text-sm leading-relaxed",
+                        msg.role === "user"
+                          ? "bg-primary text-primary-foreground rounded-tr-none"
+                          : "bg-muted/60 border border-border/50 rounded-tl-none"
+                      )}
+                    >
+                      <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:mt-3 prose-headings:mb-2 prose-p:m-0 prose-p:leading-relaxed prose-li:m-0 prose-a:text-primary hover:prose-a:underline">
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
+                    </div>
+                  </div>
+                </motion.article>
+              ))}
+            </AnimatePresence>
+
+            {isTyping && (
+              <motion.article
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex gap-3 items-center my-3"
+                role="status"
+                aria-label="Assistant is typing"
+              >
+                <div
+                  className="w-8 h-8 rounded-full bg-muted flex items-center justify-center border ring-1 ring-border animate-pulse shadow-sm"
+                  aria-hidden="true"
+                >
+                  <Bot size={16} className="text-muted-foreground" />
+                </div>
+                <div className="flex gap-1.5 items-center">
+                  <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" />
+                  <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce [animation-delay:0.2s]" />
+                  <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce [animation-delay:0.4s]" />
+                </div>
+              </motion.article>
+            )}
+
+            <div ref={messagesEndRef} />
+          </section>
+        </ScrollArea>
+
+        <footer className="border-t border-border/50 bg-background p-4 space-y-3">
+          <form
+            onSubmit={handleSubmit}
+            className="max-w-4xl mx-auto space-y-2"
+            role="region"
+            aria-label="Message input"
+          >
+            <div className="relative flex items-end gap-2 bg-muted/40 rounded-2xl border border-border/50 px-4 py-2 transition-all focus-within:ring-1 focus-within:ring-primary/30 focus-within:border-primary/50">
+              <label htmlFor="message-input" className="sr-only">
+                Message the therapy assistant
+              </label>
+              <textarea
+                ref={textareaRef}
+                id="message-input"
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit(e as any);
+                  }
+                }}
+                placeholder="Share what's on your mind..."
+                className="flex-1 bg-transparent border-0 focus:ring-0 py-2 text-sm max-h-40 resize-none leading-relaxed"
+                aria-label="Message input"
+              />
+              <Button
+                type="submit"
+                disabled={!message.trim() || isTyping}
+                size="icon"
+                className="h-9 w-9 shrink-0 rounded-lg shadow-sm hover:bg-primary hover:text-primary-foreground transition-colors"
+                aria-label={isTyping ? "Waiting for response" : "Send message"}
+              >
+                {isTyping ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+              </Button>
+            </div>
+
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground/80">
+                Your safety is important. In emergencies, please contact local emergency services.
+              </p>
+            </div>
+          </form>
+        </footer>
+      </main>
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import {Header} from "@/components/Header";
-import {Providers} from '@/components/Providers'
+import { Header } from "@/components/Header";
+import { Providers } from "@/components/Providers";
 import { Footer } from "@/components/Footer";
 
 const geistSans = Geist({
@@ -16,25 +16,29 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Mindease - Your Personal Mental Wellness Assistant ",
-  description: "AI Theraphy Companion",
+  title: "Mindease - Your Personal Mental Wellness Assistant",
+  description: "AI Therapy Companion",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {/* header */}
         <Providers>
-        <Header/>
-        {children}
-        <Footer/>
+          <Header />
+
+          {/* Main content offset to prevent header overlap */}
+          <main className="pt-16 min-h-screen">
+            {children}
+          </main>
+
+          <Footer />
         </Providers>
       </body>
     </html>
