@@ -1,57 +1,54 @@
 "use client"
 
+import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
+import { useSession } from "@/lib/contexts/session-context"
+import { format, startOfDay, endOfDay } from "date-fns"
+import { motion } from "framer-motion"
+import { cn } from "@/lib/utils"
+
+// UI Components
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Container } from "@/components/ui/container"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
-import { cn } from "@/lib/utils"
-import { motion } from "framer-motion"
+import { Container } from "@/components/ui/container"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
+
+// Icons
 import {
   Activity,
   ArrowRight,
   Brain,
-  BrainCircuit,
   Calendar,
-  ChevronRight,
   Clock,
   Heart,
   Loader2,
   MessageSquare,
   Sparkles,
-  Trophy,
   Quote as QuoteIcon,
-  TrendingUp,
   Zap,
+  TrendingUp,
+  RefreshCw
 } from "lucide-react"
-import { useState, useEffect, useCallback } from "react"
-import { format, startOfDay, endOfDay } from "date-fns"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+
+// Feature Components
 import { AnxietyGames } from "@/components/games/anxiety-games"
 import { MoodForm } from "@/components/mood/mood-form"
 import { ActivityLogger } from "@/components/activities/activity-logger"
-import { useRouter } from "next/navigation"
-import { useSession } from "@/lib/contexts/session-context"
+
+// API
 import { getActivities } from "@/lib/api/activity"
 import { getMoodHistory } from "@/lib/api/mood"
 import { getAllChatSessions } from "@/lib/api/chat"
 
-/* ---------------- Quotes ---------------- */
-
+/* ---------------- Quotes Data ---------------- */
 const supportiveQuotes = [
   { text: "You are stronger than you think, braver than you believe, and more capable than you imagine.", author: "A.A. Milne" },
   { text: "Healing is not linear. Some days will be harder than others, and that's okay.", author: "Unknown" },
@@ -72,38 +69,39 @@ export default function DashboardPage() {
   const [showMoodModal, setShowMoodModal] = useState(false)
   const [showActivityLogger, setShowActivityLogger] = useState(false)
 
+  // Stats State
   const [moodScore, setMoodScore] = useState(0)
   const [todayActivities, setTodayActivities] = useState(0)
   const [todayTherapySessions, setTodayTherapySessions] = useState(0)
-  const [streak, setStreak] = useState(7) // Example streak value
+  const [streak, setStreak] = useState(7) 
   const [isLoadingStats, setIsLoadingStats] = useState(true)
 
   /* ---------------- Core Sync ---------------- */
-
   const fetchDashboardStats = useCallback(async () => {
     try {
       setIsLoadingStats(true)
-
       const today = new Date()
       const dayStart = startOfDay(today)
       const dayEnd = endOfDay(today)
 
-      const moods = await getMoodHistory({
-        startDate: dayStart.toISOString(),
-        endDate: dayEnd.toISOString(),
-      })
+      // Parallel fetching for speed
+      const [moods, activities, sessions] = await Promise.all([
+        getMoodHistory({ startDate: dayStart.toISOString(), endDate: dayEnd.toISOString() }),
+        getActivities(),
+        getAllChatSessions()
+      ])
 
+      // Process Mood
       if (moods.success && moods.data.length) {
         const avg = Math.round(
-          moods.data.reduce((s: number, m: any) => s + (m.score || 0), 0) /
-            moods.data.length
+          moods.data.reduce((s: number, m: any) => s + (m.score || 0), 0) / moods.data.length
         )
         setMoodScore(avg)
       } else {
         setMoodScore(0)
       }
 
-      const activities = await getActivities()
+      // Process Activities
       if (activities.success) {
         const count = activities.data.filter((a: any) => {
           const d = new Date(a.timestamp)
@@ -112,7 +110,7 @@ export default function DashboardPage() {
         setTodayActivities(count)
       }
 
-      const sessions = await getAllChatSessions()
+      // Process Sessions
       if (Array.isArray(sessions)) {
         const count = sessions.filter((s: any) => {
           const d = new Date(s.createdAt)
@@ -129,376 +127,292 @@ export default function DashboardPage() {
   }, [])
 
   /* ---------------- Effects ---------------- */
-
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
-
     const day = new Date().getDate()
     setDailyQuote(supportiveQuotes[day % supportiveQuotes.length])
-
     fetchDashboardStats()
-
     return () => clearInterval(timer)
   }, [fetchDashboardStats])
 
-  /* ---------------- UI Data ---------------- */
-
+  /* ---------------- UI Config ---------------- */
   const wellnessStats = [
     {
       title: "Mood Score",
       value: moodScore ? `${moodScore}%` : "—",
       icon: Brain,
       color: "text-purple-500",
-      bgColor: "bg-gradient-to-br from-purple-500/10 to-purple-600/5",
-      borderColor: "border-purple-500/20",
-      description: "Today's average",
+      bgClass: "bg-purple-500/10 border-purple-500/20",
+      description: "Daily Average",
       trend: "+2%",
       showProgress: true,
       progressValue: moodScore,
     },
     {
-      title: "Activity Streak",
-      value: `${streak} days`,
+      title: "Streak",
+      value: `${streak} Days`,
       icon: Zap,
-      color: "text-yellow-500",
-      bgColor: "bg-gradient-to-br from-yellow-500/10 to-yellow-600/5",
-      borderColor: "border-yellow-500/20",
-      description: "Keep going!",
+      color: "text-amber-500",
+      bgClass: "bg-amber-500/10 border-amber-500/20",
+      description: "Consistency",
       trend: "+1 day",
     },
     {
-      title: "Therapy Sessions",
+      title: "Sessions",
       value: `${todayTherapySessions}`,
       icon: Heart,
       color: "text-rose-500",
-      bgColor: "bg-gradient-to-br from-rose-500/10 to-rose-600/5",
-      borderColor: "border-rose-500/20",
-      description: "Completed today",
-      trend: todayTherapySessions > 0 ? "Active" : "Start one",
+      bgClass: "bg-rose-500/10 border-rose-500/20",
+      description: "Therapy Chats",
+      trend: todayTherapySessions > 0 ? "Great job" : "Start one",
     },
     {
-      title: "Activities Logged",
+      title: "Activities",
       value: `${todayActivities}`,
       icon: Activity,
       color: "text-blue-500",
-      bgColor: "bg-gradient-to-br from-blue-500/10 to-blue-600/5",
-      borderColor: "border-blue-500/20",
-      description: "Wellness activities",
-      trend: todayActivities > 0 ? "Good job!" : "Log one",
+      bgClass: "bg-blue-500/10 border-blue-500/20",
+      description: "Logged Actions",
+      trend: todayActivities > 0 ? "Active" : "Log now",
     },
   ]
 
   const quickActions = [
     {
       title: "Track Mood",
-      description: "How are you feeling right now?",
+      description: "Check-in with yourself",
       icon: Heart,
       iconColor: "text-rose-500",
-      bgColor: "hover:bg-rose-500/10 hover:border-rose-500/30",
+      bgGradient: "hover:bg-rose-500/5",
       onClick: () => setShowMoodModal(true),
     },
     {
       title: "Log Activity",
-      description: "Meditation, walk, therapy",
+      description: "Record your progress",
       icon: Activity,
       iconColor: "text-blue-500",
-      bgColor: "hover:bg-blue-500/10 hover:border-blue-500/30",
+      bgGradient: "hover:bg-blue-500/5",
       onClick: () => setShowActivityLogger(true),
     },
     {
-      title: "Start Chat",
-      description: "Talk with your AI companion",
+      title: "AI Therapy",
+      description: "Chat with MindEase",
       icon: MessageSquare,
-      iconColor: "text-emerald-500",
-      bgColor: "bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:opacity-90 hover:shadow-lg",
-      buttonVariant: "default" as const,
+      iconColor: "text-white",
+      bgGradient: "bg-gradient-to-br from-primary to-primary/80 text-white hover:shadow-lg hover:shadow-primary/20",
+      isPrimary: true,
       onClick: () => router.push("/therapy/new"),
     },
   ]
 
   /* ---------------- Render ---------------- */
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      <Container className="pt-6 pb-8 space-y-6 md:space-y-8">
-        {/* Header with Time & Welcome */}
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      
+      {/* Ambient Background */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px]" />
+        <div className="absolute top-[20%] right-[-10%] w-[500px] h-[500px] bg-purple-500/5 rounded-full blur-[100px]" />
+        <div className="absolute bottom-[-10%] left-[20%] w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[120px]" />
+      </div>
+
+      <Container className="relative z-10 pt-8 pb-12 space-y-8 md:space-y-12">
+        
+        {/* 1. Hero Section */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="space-y-2"
+          className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6"
         >
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="gap-1.5 px-3 py-1">
-                  <Clock className="h-3 w-3" />
-                  {format(currentTime, "hh:mm a")}
-                </Badge>
-                <Badge variant="secondary" className="gap-1.5 px-3 py-1">
-                  <Calendar className="h-3 w-3" />
-                  {format(currentTime, "EEE, MMM d")}
-                </Badge>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-muted/50 border border-border/50 backdrop-blur-sm">
+                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground">{format(currentTime, "EEEE, MMMM do")}</span>
               </div>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-                Welcome back,{" "}
-                <span className="text-primary">{user?.name || "User"}</span>!
-              </h1>
-              <p className="text-muted-foreground">
-                Ready for another day of growth and self-care?
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-muted/50 border border-border/50 backdrop-blur-sm">
+                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground">{format(currentTime, "h:mm a")}</span>
+              </div>
+            </div>
+            <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-foreground">
+              Good {parseInt(format(currentTime, "H")) < 12 ? "Morning" : parseInt(format(currentTime, "H")) < 17 ? "Afternoon" : "Evening"}, <br />
+              <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                {user?.name || "Friend"}
+              </span>
+            </h1>
+          </div>
+          
+          {isLoadingStats && (
+             <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-background/50 border border-border/50 backdrop-blur-md shadow-sm">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span className="text-xs font-medium text-muted-foreground">Syncing...</span>
+             </div>
+          )}
+        </motion.div>
+
+        {/* 2. Daily Insight (Quote) */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.1 }}
+          className="relative group rounded-[2.5rem] overflow-hidden"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-purple-500/5 to-transparent opacity-50 group-hover:opacity-70 transition-opacity" />
+          <div className="relative p-8 md:p-10 border border-primary/10 backdrop-blur-sm bg-card/30">
+            <div className="absolute top-6 right-8 opacity-20">
+              <QuoteIcon className="w-16 h-16 text-primary rotate-12" />
+            </div>
+            <div className="max-w-2xl relative z-10">
+              <h3 className="text-sm font-semibold uppercase tracking-widest text-primary mb-3 flex items-center gap-2">
+                <Sparkles className="w-4 h-4" /> Daily Insight
+              </h3>
+              <p className="text-xl md:text-2xl font-medium leading-relaxed italic text-foreground/90 mb-4">
+                "{dailyQuote.text}"
+              </p>
+              <p className="text-sm font-medium text-muted-foreground border-l-2 border-primary/30 pl-3">
+                {dailyQuote.author}
               </p>
             </div>
-            {isLoadingStats && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Updating stats...
-              </div>
-            )}
           </div>
         </motion.div>
 
-        {/* Daily Quote Card */}
+        {/* 3. Stats Grid */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
+           initial={{ opacity: 0, y: 20 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ delay: 0.2 }}
         >
-          <Card className="border-primary/10 bg-gradient-to-r from-primary/5 to-transparent overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -translate-y-16 translate-x-16" />
-            <CardContent className="p-6 relative">
-              <div className="flex gap-4 items-start">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <QuoteIcon className="w-5 h-5 text-primary" />
-                </div>
-                <div className="space-y-2">
-                  <p className="text-lg font-medium italic leading-relaxed">
-                    "{dailyQuote.text}"
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    — {dailyQuote.author}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+          <div className="flex items-center justify-between mb-4 px-1">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-muted-foreground" /> Overview
+            </h2>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={fetchDashboardStats} 
+              className="h-8 w-8 rounded-full p-0 hover:bg-muted"
+            >
+              <RefreshCw className={cn("w-4 h-4 text-muted-foreground", isLoadingStats && "animate-spin")} />
+            </Button>
+          </div>
 
-        {/* Quick Session Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.2 }}
-        >
-          <Card className="border-primary/20 shadow-sm">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Zap className="h-5 w-5 text-yellow-500" />
-                    Quick Session
-                  </CardTitle>
-                  <CardDescription>
-                    Take a moment for your mental wellbeing
-                  </CardDescription>
-                </div>
-                <Badge variant="outline" className="gap-1.5">
-                  <Sparkles className="h-3 w-3" />
-                  Recommended
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {quickActions.map((action, index) => (
-                  <motion.div
-                    key={action.title}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.1 * index }}
-                  >
-                    <Button
-                      variant={action.buttonVariant || "outline"}
-                      className={cn(
-                        "w-full h-28 flex flex-col items-center justify-center gap-3 p-4 transition-all duration-200",
-                        action.bgColor,
-                        !action.buttonVariant && "hover:shadow-md"
-                      )}
-                      onClick={action.onClick}
-                    >
-                      <div className={cn(
-                        "w-12 h-12 rounded-full flex items-center justify-center",
-                        !action.buttonVariant && action.iconColor?.replace('text-', 'bg-') + '/10'
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            {wellnessStats.map((stat, idx) => (
+              <motion.div
+                key={stat.title}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 * idx }}
+                className="group relative"
+              >
+                <div className="absolute inset-0 bg-card/40 rounded-[2rem] shadow-sm backdrop-blur-md transition-all group-hover:shadow-md group-hover:bg-card/60" />
+                <div className={cn("absolute inset-0 border rounded-[2rem] opacity-50 transition-colors", stat.bgClass.split(' ')[1])} />
+                
+                <div className="relative p-6 h-full flex flex-col justify-between">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className={cn("p-2.5 rounded-2xl", stat.bgClass.split(' ')[0])}>
+                      <stat.icon className={cn("w-5 h-5", stat.color)} />
+                    </div>
+                    {stat.trend && (
+                      <span className={cn(
+                        "text-[10px] font-bold px-2 py-1 rounded-full border bg-background/50 backdrop-blur-sm", 
+                        stat.color
                       )}>
-                        <action.icon className={cn(
-                          "h-6 w-6",
-                          action.buttonVariant ? "text-white" : action.iconColor
-                        )} />
-                      </div>
-                      <div className="space-y-1">
-                        <span className="font-semibold text-sm">
-                          {action.title}
-                        </span>
-                        <p className="text-xs text-muted-foreground leading-tight">
-                          {action.description}
-                        </p>
-                      </div>
-                    </Button>
-                  </motion.div>
-                ))}
-              </div>
-            </CardContent>
-            <CardFooter className="pt-0">
-              <div className="w-full text-center">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="text-xs text-muted-foreground gap-1"
-                  onClick={() => router.push("/therapy")}
-                >
-                  View all sessions
-                  <ChevronRight className="h-3 w-3" />
-                </Button>
-              </div>
-            </CardFooter>
-          </Card>
-        </motion.div>
-
-        {/* Today's Overview Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.3 }}
-        >
-          <Card className="border-primary/20 shadow-sm">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-primary" />
-                    Today's Overview
-                  </CardTitle>
-                  <CardDescription>
-                    Your progress for {format(new Date(), "MMMM d, yyyy")}
-                  </CardDescription>
-                </div>
-                <Badge variant="secondary" className="gap-1.5">
-                  Daily Summary
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {wellnessStats.map((stat, index) => (
-                  <motion.div
-                    key={stat.title}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.2, delay: 0.1 * index }}
-                  >
-                    <Card className={cn(
-                      "border h-full transition-all duration-200 hover:shadow-md hover:scale-[1.02]",
-                      stat.borderColor,
-                      stat.bgColor
-                    )}>
-                      <CardContent className="p-5">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <div className={cn(
-                                "p-2 rounded-lg",
-                                stat.bgColor
-                              )}>
-                                <stat.icon className={cn("h-4 w-4", stat.color)} />
-                              </div>
-                              <span className="text-xs font-medium text-muted-foreground">
-                                {stat.title}
-                              </span>
-                            </div>
-                            <p className="text-3xl font-bold tracking-tight">
-                              {stat.value}
-                            </p>
-                          </div>
-                          {stat.trend && (
-                            <Badge 
-                              variant="outline" 
-                              className={cn(
-                                "text-xs",
-                                stat.trend.includes('+') ? "bg-green-500/10 text-green-700 border-green-500/20" :
-                                stat.trend.includes('Good') ? "bg-blue-500/10 text-blue-700 border-blue-500/20" :
-                                "bg-muted text-muted-foreground"
-                              )}
-                            >
-                              {stat.trend}
-                            </Badge>
-                          )}
+                        {stat.trend}
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-2xl font-bold tracking-tight mb-1">{stat.value}</h3>
+                    <p className="text-xs font-medium text-muted-foreground">{stat.description}</p>
+                    
+                    {stat.showProgress && (
+                      <div className="mt-4 space-y-1.5">
+                        <div className="flex justify-between text-[10px] text-muted-foreground font-medium">
+                          <span>Progress</span>
+                          <span>{stat.progressValue}%</span>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-3">
-                          {stat.description}
-                        </p>
-                        {stat.showProgress && stat.progressValue && (
-                          <>
-                            <Separator className="my-3" />
-                            <div className="space-y-1">
-                              <div className="flex justify-between text-xs">
-                                <span>Progress</span>
-                                <span>{stat.progressValue}%</span>
-                              </div>
-                              <Progress value={stat.progressValue} className="h-2" />
-                            </div>
-                          </>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
-              </div>
-            </CardContent>
-            <CardFooter className="pt-0">
-              <div className="w-full text-right">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="text-xs gap-1"
-                  onClick={fetchDashboardStats}
-                  disabled={isLoadingStats}
-                >
-                  {isLoadingStats ? (
-                    <>
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      Refreshing...
-                    </>
-                  ) : (
-                    <>
-                      Refresh stats
-                      <ArrowRight className="h-3 w-3" />
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardFooter>
-          </Card>
+                        <Progress value={stat.progressValue} className="h-1.5 bg-muted/50" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </motion.div>
 
-        {/* Anxiety Games Section */}
+        {/* 4. Quick Actions */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.4 }}
+          transition={{ delay: 0.3 }}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+            {quickActions.map((action, idx) => (
+              <button
+                key={action.title}
+                onClick={action.onClick}
+                className={cn(
+                  "relative group overflow-hidden rounded-[2rem] p-6 text-left transition-all duration-300",
+                  action.isPrimary 
+                    ? "shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-1" 
+                    : "bg-card/40 border border-border/50 hover:bg-card/60 hover:border-primary/20 backdrop-blur-md"
+                )}
+              >
+                <div className={cn("absolute inset-0 transition-colors duration-300", action.bgGradient)} />
+                
+                <div className="relative z-10 flex items-center gap-4">
+                  <div className={cn(
+                    "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110",
+                    action.isPrimary ? "bg-white/20" : "bg-muted/50"
+                  )}>
+                    <action.icon className={cn("w-6 h-6", action.iconColor)} />
+                  </div>
+                  <div>
+                    <h4 className={cn("font-bold text-lg", action.isPrimary ? "text-white" : "text-foreground")}>
+                      {action.title}
+                    </h4>
+                    <p className={cn("text-xs", action.isPrimary ? "text-white/80" : "text-muted-foreground")}>
+                      {action.description}
+                    </p>
+                  </div>
+                  <div className={cn(
+                    "ml-auto transition-transform duration-300 group-hover:translate-x-1",
+                    action.isPrimary ? "text-white" : "text-muted-foreground"
+                  )}>
+                    <ArrowRight className="w-5 h-5" />
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* 5. Anxiety Games Section */}
+        <motion.div
+           initial={{ opacity: 0, y: 20 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ delay: 0.4 }}
+           className="pt-4"
         >
           <AnxietyGames />
         </motion.div>
+
       </Container>
 
-      {/* Mood Modal */}
+      {/* Modals */}
       <Dialog open={showMoodModal} onOpenChange={setShowMoodModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Heart className="h-5 w-5 text-rose-500" />
-              Track Your Mood
-            </DialogTitle>
-            <DialogDescription>
-              How are you feeling right now? Your mood helps us personalize your experience.
+        <DialogContent className="sm:max-w-md rounded-[2rem] bg-card/95 backdrop-blur-xl border-primary/10">
+          <DialogHeader className="space-y-3">
+            <div className="mx-auto w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center">
+              <Heart className="h-6 w-6 text-rose-500" />
+            </div>
+            <DialogTitle className="text-center text-xl">Track Your Mood</DialogTitle>
+            <DialogDescription className="text-center">
+              Taking a moment to reflect helps build emotional awareness.
             </DialogDescription>
           </DialogHeader>
           <MoodForm
@@ -510,7 +424,6 @@ export default function DashboardPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Activity Logger */}
       <ActivityLogger
         open={showActivityLogger}
         onOpenChange={setShowActivityLogger}

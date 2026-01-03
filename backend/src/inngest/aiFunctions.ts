@@ -292,9 +292,202 @@ export const generateActivityRecommendations = inngest.createFunction(
   }
 );
 
+// Function to suggest anxiety relief activities based on mood data
+export const suggestActivitiesFromMood = async (
+  moodData: {
+    moodScore: number; // 0-100
+    intensity: number; // 1-5
+    notes?: string;
+  },
+  availableActivities: Array<{
+    id: string;
+    name: string;
+    type: "game" | "grounding" | "relaxation" | "cognitive" | "expression";
+    description: string;
+    suitableMoodCategories: string[];
+    durationMinutes: number;
+    energyLevel: "low" | "medium" | "high";
+  }>
+): Promise<{
+  reason: string;
+  suggestedActivities: Array<{
+    id: string;
+    name: string;
+    type: string;
+    durationMinutes: number;
+    why: string;
+  }>;
+}> => {
+  try {
+    // Determine mood category from moodScore
+    let moodCategory: string;
+    if (moodData.moodScore <= 20) {
+      moodCategory = "very_low";
+    } else if (moodData.moodScore <= 40) {
+      moodCategory = "low";
+    } else if (moodData.moodScore <= 60) {
+      moodCategory = "neutral";
+    } else if (moodData.moodScore <= 80) {
+      moodCategory = "good";
+    } else {
+      moodCategory = "great";
+    }
+
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+    const prompt = `You are a mental wellness assistant designed to suggest anxiety relief activities and games.
+
+Your task:
+Based on the user's current mood data, select the most suitable activities from the provided activity list.
+
+Inputs:
+1. User mood information:
+   - moodScore: ${moodData.moodScore} (0-100)
+   - intensity: ${moodData.intensity} (1-5)
+   - moodCategory: ${moodCategory}
+   ${moodData.notes ? `- notes: ${moodData.notes}` : ""}
+
+2. Available activities:
+${JSON.stringify(availableActivities, null, 2)}
+
+Rules for selection:
+- If moodCategory is very_low or intensity >= 4:
+  - Prioritize grounding and calming activities
+  - Avoid stimulating or competitive games
+- If moodCategory is low:
+  - Suggest gentle cognitive or expressive activities
+- If moodCategory is neutral:
+  - Suggest light engagement or focus based activities
+- If moodCategory is good or great:
+  - Suggest maintenance, creative, or positive reinforcement activities
+- Select 3 to 5 activities maximum
+- Prefer variety in activity types
+- Do NOT repeat similar activities
+- Do NOT invent new activities
+- Do NOT provide medical advice
+- Only select activities from the provided list
+
+Output format:
+Return ONLY valid JSON in the following structure (no markdown, no emojis, no extra text):
+
+{
+  "reason": "Short explanation of why these activities were chosen",
+  "suggestedActivities": [
+    {
+      "id": "string",
+      "name": "string",
+      "type": "string",
+      "durationMinutes": number,
+      "why": "One short sentence explaining relevance to the user's mood"
+    }
+  ]
+}
+
+Tone guidelines:
+- Calm
+- Supportive
+- Non judgmental
+- Encouraging but not verbose
+
+Important constraints:
+- Do not include markdown
+- Do not include emojis
+- Do not include extra text outside JSON
+- Return ONLY the JSON object`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    let text = response.text().trim();
+
+    // Clean the response text to ensure it's valid JSON
+    text = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    
+    // Remove any leading/trailing whitespace or markdown code blocks
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      text = jsonMatch[0];
+    }
+
+    logger.info("Received activity suggestions from Gemini:", { text });
+
+    const parsed = JSON.parse(text);
+
+    // Validate the response structure
+    if (!parsed.reason || !Array.isArray(parsed.suggestedActivities)) {
+      throw new Error("Invalid response structure from AI");
+    }
+
+    // Ensure we have 3-5 activities
+    if (parsed.suggestedActivities.length < 3) {
+      logger.warn("Received fewer than 3 activities, may need adjustment");
+    }
+    if (parsed.suggestedActivities.length > 5) {
+      parsed.suggestedActivities = parsed.suggestedActivities.slice(0, 5);
+    }
+
+    logger.info("Successfully parsed activity suggestions:", parsed);
+    return parsed;
+  } catch (error) {
+    logger.error("Error in activity suggestion:", { error, moodData });
+    
+    // Return a safe default response
+    const defaultActivities = availableActivities
+      .filter((activity) => {
+        // Default to grounding/relaxation if high intensity
+        if (moodData.intensity >= 4) {
+          return (
+            activity.type === "grounding" ||
+            activity.type === "relaxation"
+          );
+        }
+        return true;
+      })
+      .slice(0, 3)
+      .map((activity) => ({
+        id: activity.id,
+        name: activity.name,
+        type: activity.type,
+        durationMinutes: activity.durationMinutes,
+        why: "Selected as a supportive activity for your current mood",
+      }));
+
+    return {
+      reason: "Selected calming activities to support your current mood",
+      suggestedActivities: defaultActivities,
+    };
+  }
+};
+
+// Inngest function wrapper for activity suggestions
+export const suggestActivitiesFromMoodEvent = inngest.createFunction(
+  { id: "suggest-activities-from-mood" },
+  { event: "mood/activity-suggestion.requested" },
+  async ({ event, step }) => {
+    try {
+      const { moodData, availableActivities } = event.data;
+
+      const suggestions = await step.run(
+        "generate-activity-suggestions",
+        async () => {
+          return await suggestActivitiesFromMood(moodData, availableActivities);
+        }
+      );
+
+      return {
+        success: true,
+        suggestions,
+      };
+    } catch (error) {
+      logger.error("Error in activity suggestion event:", { error });
+      throw error;
+    }
+  }
+);
+
 // Add the functions to the exported array
 export const functions = [
   processChatMessage,
   analyzeTherapySession,
   generateActivityRecommendations,
+  suggestActivitiesFromMoodEvent,
 ];

@@ -1,9 +1,24 @@
 import mongoose, { Schema, Document } from "mongoose";
 
+// Interface for the AI Suggestion sub-document
+interface IActivitySuggestion {
+  id: string;
+  name: string;
+  type: string;
+  durationMinutes: number;
+  why: string;
+}
+
 export interface IMood extends Document {
   userId: mongoose.Types.ObjectId;
-  score: number;
+  score: number;        // 0-100 (Mood Level)
+  intensity: number;    // 1-5 (Emotional Volume)
   note?: string;
+  // Store the AI results directly in the mood entry
+  aiRecommendations?: {
+    reason: string;
+    suggestedActivities: IActivitySuggestion[];
+  };
   timestamp: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -22,9 +37,29 @@ const moodSchema = new Schema<IMood>(
       min: 0,
       max: 100,
     },
+    intensity: {
+      type: Number,
+      required: true,
+      min: 1,
+      max: 5,
+      default: 3, // Default to neutral intensity
+    },
     note: {
       type: String,
       trim: true,
+    },
+    // New field to persist AI feedback
+    aiRecommendations: {
+      reason: String,
+      suggestedActivities: [
+        {
+          id: String,
+          name: String,
+          type: String,
+          durationMinutes: Number,
+          why: String,
+        },
+      ],
     },
     timestamp: {
       type: Date,
