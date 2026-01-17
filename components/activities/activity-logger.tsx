@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select"
 import { DialogTitle } from "@radix-ui/react-dialog"
 import { Button } from "../ui/button"
-import { logActivity as apiLogActivity } from "@/lib/api/activity"
+import { logActivity as apiLogActivity, updateActivity } from "@/lib/api/activity"
 
 const activityTypes = [
   { id: "meditation", name: "Meditation" },
@@ -33,18 +33,30 @@ interface ActivityLoggerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess?: () => void
+  initialData?: {
+    _id: string;
+    type: string;
+    name: string;
+    duration?: number;
+    description?: string;
+  }
 }
 
 export function ActivityLogger({
   open,
   onOpenChange,
   onSuccess,
+  initialData,
 }: ActivityLoggerProps) {
-  const [type, setType] = useState("")
-  const [name, setName] = useState("")
-  const [duration, setDuration] = useState("")
-  const [description, setDescription] = useState("")
+  const [type, setType] = useState(initialData?.type ?? "")
+  const [name, setName] = useState(initialData?.name ?? "")
+  const [duration, setDuration] = useState(initialData?.duration?.toString() ?? "")
+  const [description, setDescription] = useState(initialData?.description ?? "")
   const [isLoading, setIsLoading] = useState(false)
+
+  // Reset form when dialog opens/closes or initialData changes
+  // Ideally use useEffect to sync with initialData if it changes while open
+  // But typically it's set before opening.
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -58,19 +70,25 @@ export function ActivityLogger({
         duration: duration ? Number(duration) : undefined,
       }
 
-      await apiLogActivity(payload)
+      if (initialData) {
+        await updateActivity(initialData._id, payload)
+      } else {
+        await apiLogActivity(payload)
+      }
 
-      // Reset fields
-      setType("")
-      setName("")
-      setDuration("")
-      setDescription("")
+      // Reset fields if creating new, but maybe not if editing?
+      if (!initialData) {
+        setType("")
+        setName("")
+        setDuration("")
+        setDescription("")
+      }
 
       onSuccess?.()          // notify dashboard
       onOpenChange(false)    // close modal
     } catch (err) {
-      console.error("Failed to log activity:", err)
-      alert("Failed to log activity. Please try again.")
+      console.error("Failed to save activity:", err)
+      alert("Failed to save activity. Please try again.")
     } finally {
       setIsLoading(false)
     }

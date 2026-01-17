@@ -16,6 +16,8 @@ import {
   Volume2,
   VolumeX,
   Settings2,
+  ArrowDown,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -31,13 +33,12 @@ import {
 } from "@/lib/api/chat";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
-import { 
-  Sheet, 
-  SheetContent, 
-  SheetDescription, 
-  SheetHeader, 
-  SheetTitle, 
-  SheetTrigger 
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
 } from "@/components/ui/sheet";
 import {
   DropdownMenu,
@@ -60,18 +61,17 @@ export default function TherapyPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [userScrolledUp, setUserScrolledUp] = useState(false);
+
+  // Voice States
+  const [isSpeaking, setIsSpeaking] = useState<number | null>(null);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoiceName, setSelectedVoiceName] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // Cooldown and Speech states
-  const [isCooldown, setIsCooldown] = useState(false);
-  const [cooldownTime, setCooldownTime] = useState(0);
-  const [isSpeaking, setIsSpeaking] = useState<number | null>(null);
   
-  // Voice Selection States
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoiceName, setSelectedVoiceName] = useState<string | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -79,200 +79,131 @@ export default function TherapyPage() {
     else setMounted(true);
   }, [router]);
 
-  // Handle Voices
+  // Load voices logic
   useEffect(() => {
     const loadVoices = () => {
       const voices = window.speechSynthesis.getVoices();
-      const englishVoices = voices.filter(v => v.lang.startsWith('en'));
+      const englishVoices = voices.filter((v) => v.lang.startsWith("en"));
       setAvailableVoices(englishVoices);
 
       if (!selectedVoiceName && englishVoices.length > 0) {
-        const preferred = englishVoices.find(v => 
-          /female|samantha|zira|victoria|karen|google uk english female/i.test(v.name)
+        const preferred = englishVoices.find((v) =>
+          /female|samantha|victoria|google uk english female/i.test(v.name)
         );
         if (preferred) setSelectedVoiceName(preferred.name);
       }
     };
-
     loadVoices();
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
+    window.speechSynthesis.onvoiceschanged = loadVoices;
   }, [selectedVoiceName]);
-
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 160) + "px";
-    }
-  }, [message]);
 
   useEffect(() => {
     const initChat = async () => {
       setIsLoading(true);
       try {
         if (!sessionId || sessionId === "new") {
-          const newSessionId = await createChatSession();
-          setSessionId(newSessionId);
-          window.history.pushState({}, "", `/therapy/${newSessionId}`);
+          const newId = await createChatSession();
+          setSessionId(newId);
+          window.history.pushState({}, "", `/therapy/${newId}`);
         } else {
           const history = await getChatHistory(sessionId);
           if (Array.isArray(history)) {
-            setMessages(history.map(msg => ({ ...msg, timestamp: new Date(msg.timestamp) })));
+            setMessages(history.map((m) => ({ ...m, timestamp: new Date(m.timestamp) })));
           }
         }
-      } catch {
-        setMessages([]);
-      } finally {
-        setIsLoading(false);
-      }
+      } catch { setMessages([]); } finally { setIsLoading(false); }
     };
     initChat();
   }, [sessionId]);
 
-  useEffect(() => {
-    const loadSessions = async () => {
-      try {
-        const all = await getAllChatSessions();
-        setSessions(all);
-      } catch {}
-    };
-    loadSessions();
-  }, [messages]);
+ // 1. Add a refresh trigger state
+const [refreshSidebar, setRefreshSidebar] = useState(0);
+
+// 2. Updated Fetcher: Watch for sessionId changes and manual refreshes
+useEffect(() => {
+  const loadSessions = async () => {
+    try {
+      const all = await getAllChatSessions();
+      // Sort newest updated first
+      const sorted = all.sort((a, b) => 
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      );
+      setSessions(sorted);
+    } catch (err) {
+      console.error("Failed to fetch sessions", err);
+    }
+  };
+  loadSessions();
+}, [messages.length, sessionId, refreshSidebar]); 
+// Added messages.length and sessionId as triggers
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    setUserScrolledUp(false);
   };
-  useEffect(scrollToBottom, [messages, isTyping]);
+
+  useEffect(() => {
+    if (!userScrolledUp) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length, isTyping, userScrolledUp]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    const fromBottom = scrollHeight - scrollTop - clientHeight;
+    setShowScrollButton(fromBottom > 150);
+    if (fromBottom > 150) setUserScrolledUp(true);
+  };
 
   const handleToggleSpeech = (text: string, index: number) => {
-    if (isSpeaking === index) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(null);
-      return;
-    }
-
+    if (isSpeaking === index) { window.speechSynthesis.cancel(); setIsSpeaking(null); return; }
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 0.9;
-    
-    const voice = availableVoices.find(v => v.name === selectedVoiceName);
+    const voice = availableVoices.find((v) => v.name === selectedVoiceName);
     if (voice) utterance.voice = voice;
-    
     utterance.onend = () => setIsSpeaking(null);
-    utterance.onerror = () => setIsSpeaking(null);
-    
     setIsSpeaking(index);
     window.speechSynthesis.speak(utterance);
   };
 
-  const handleDeleteSession = async (e: React.MouseEvent, deleteId: string) => {
-    e.stopPropagation();
-    if (!confirm("Delete this chat session?")) return;
-    try {
-      await deleteChatSessionApi(deleteId);
-      setSessions(prev => prev.filter(s => s.sessionId !== deleteId));
-      if (deleteId === sessionId) {
-        setSessionId(null);
-        setMessages([]);
-        router.push("/therapy");
-      }
-    } catch (err) {
-      console.error("Delete failed", err);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || isTyping || isCooldown || !sessionId) return;
-
+    if (!message.trim() || isTyping || !sessionId) return;
+    setUserScrolledUp(false);
     const userMsg: ChatMessage = { role: "user", content: message, timestamp: new Date() };
-    setMessages(prev => [...prev, userMsg]);
+    setMessages((prev) => [...prev, userMsg]);
     setMessage("");
     setIsTyping(true);
-
     try {
-      const response = await sendChatMessage(sessionId, userMsg.content);
-      const parsed = typeof response === "string" ? JSON.parse(response) : response;
-      
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        content: parsed.response || parsed.message || "I'm here to listen.",
-        timestamp: new Date(),
-      }]);
-
-      setIsCooldown(true);
-      setCooldownTime(3);
-      const timer = setInterval(() => {
-        setCooldownTime((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            setIsCooldown(false);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-    } catch (err: any) {
-      let errMsg = "I'm having trouble responding right now. Please try again in a moment.";
-      if (err?.status === 429) errMsg = "AI quota exceeded. Please wait a moment.";
-      setMessages(prev => [...prev, { role: "assistant", content: errMsg, timestamp: new Date() }]);
-    } finally {
-      setIsTyping(false);
-    }
+     const response = await sendChatMessage(sessionId, userMsg.content);
+    const parsed = typeof response === "string" ? JSON.parse(response) : response;
+    
+    setMessages((prev) => [...prev, { 
+      role: "assistant", 
+      content: parsed.response || parsed.message || "I'm listening.", 
+      timestamp: new Date() 
+    }]);
+    // FORCE SIDEBAR REFRESH: This ensures the 'New Session' name updates 
+    // to the first message content in the sidebar immediately.
+    setRefreshSidebar(prev => prev + 1);
+    } catch { 
+      setMessages((prev) => [...prev, { role: "assistant", content: "I'm having trouble responding right now.", timestamp: new Date() }]);
+    } finally { setIsTyping(false); }
   };
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-gradient-to-b from-background via-background to-muted/20">
-      <div className="p-4 border-b border-border/50">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Chat History</h2>
-            <p className="text-xs text-muted-foreground/70 mt-1">{sessions.length} sessions</p>
-          </div>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={async () => {
-              const id = await createChatSession();
-              setSessionId(id);
-              setMessages([]);
-              window.history.pushState({}, "", `/therapy/${id}`);
-            }}
-            className="h-9 w-9 hover:bg-primary/10 hover:text-primary transition-colors"
-          >
-            <PlusCircle className="w-5 h-5" />
-          </Button>
-        </div>
+    <div className="flex flex-col h-full bg-card/50 backdrop-blur-xl border-r border-border/40">
+      <div className="p-4 border-b border-border/40 flex items-center justify-between bg-background/50">
+        <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">History</h2>
+        <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-primary/10 hover:text-primary" onClick={async () => {
+          const id = await createChatSession(); setSessionId(id); setMessages([]); window.history.pushState({}, "", `/therapy/${id}`);
+        }}><PlusCircle size={18} /></Button>
       </div>
-
       <ScrollArea className="flex-1">
-        <div className="space-y-2 px-3 py-4">
-          {sessions.map(session => (
-            <div
-              key={session.sessionId}
-              onClick={() => setSessionId(session.sessionId)}
-              className={cn(
-                "group relative w-full text-left p-3 rounded-lg transition-all duration-200 cursor-pointer border border-transparent",
-                session.sessionId === sessionId ? "bg-primary/15 border-primary/30 shadow-sm" : "hover:bg-muted/30"
-              )}
-            >
-              <div className="flex items-start gap-3">
-                <MessageSquare className={cn("w-4 h-4 mt-0.5 shrink-0", session.sessionId === sessionId ? "text-primary" : "text-muted-foreground/60")} />
-                <div className="flex-1 overflow-hidden min-w-0">
-                  <p className="text-sm font-medium truncate leading-tight">{session.messages[0]?.content || "New Session"}</p>
-                  <p className="text-xs text-muted-foreground/70 mt-1">{formatDistanceToNow(new Date(session.updatedAt), { addSuffix: true })}</p>
-                </div>
-              </div>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 h-8 w-8"
-                onClick={e => handleDeleteSession(e, session.sessionId)}
-              >
-                <Trash2 className="w-3.5 h-3.5 text-destructive/70" />
-              </Button>
+        <div className="p-2 space-y-1">
+          {sessions.map((s) => (
+            <div key={s.sessionId} onClick={() => setSessionId(s.sessionId)} className={cn("p-3 rounded-xl cursor-pointer transition-all border border-transparent", s.sessionId === sessionId ? "bg-primary/10 border-primary/20" : "hover:bg-muted/50")}>
+              <p className="text-sm font-medium truncate text-foreground/90">{s.messages[0]?.content || "New Session"}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">{formatDistanceToNow(new Date(s.updatedAt), { addSuffix: true })}</p>
             </div>
           ))}
         </div>
@@ -280,176 +211,174 @@ export default function TherapyPage() {
     </div>
   );
 
-  if (!mounted || isLoading) {
-    return (
-      <main className="h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-10 h-10 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground animate-pulse">Creating your safe space...</p>
-        </div>
-      </main>
-    );
-  }
+  if (!mounted || isLoading) return null;
 
   return (
-    <div className="flex h-screen bg-background text-foreground overflow-hidden pt-16 lg:pt-0">
-      <aside className="hidden lg:flex lg:flex-col w-80 border-r border-border/50 bg-muted/20">
+    <div className="fixed inset-0 z-[60] flex bg-background text-foreground overflow-hidden">
+      {/* Sidebar Desktop */}
+      <aside className="hidden lg:flex flex-col w-72 xl:w-80 border-r border-border/40 shrink-0">
         <SidebarContent />
       </aside>
 
-      <main className="flex-1 flex flex-col relative w-full bg-background lg:border-x border-border/50">
-        <header className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background/80 backdrop-blur-md sticky top-0 z-20">
+      <main className="flex-1 flex flex-col relative min-w-0 bg-background">
+        {/* Header */}
+        <header className="flex items-center justify-between px-6 py-4 border-b border-border/40 bg-background/80 backdrop-blur-md z-20 shrink-0">
           <div className="flex items-center gap-3">
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="lg:hidden h-9 w-9 hover:bg-muted">
-                  <Menu className="w-5 h-5" />
+                <Button variant="ghost" size="icon" className="lg:hidden h-10 w-10">
+                  <Menu className="w-6 h-6" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="p-0 w-80 bg-background">
+              <SheetContent side="left" className="p-0 w-80 z-[100]">
+                <SheetHeader className="sr-only"><SheetTitle>History</SheetTitle></SheetHeader>
                 <SidebarContent />
               </SheetContent>
             </Sheet>
-            <div className="flex flex-col gap-0.5">
-              <h1 className="text-base md:text-lg font-semibold flex items-center gap-2 leading-tight">
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                Therapy Assistant
-              </h1>
-              <p className="text-xs text-muted-foreground">Here to support your well-being</p>
-            </div>
+            <h1 className="text-base md:text-lg font-semibold flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_#22c55e]" /> MindEase Assistant
+            </h1>
           </div>
-          <Badge variant="outline" className="hidden sm:flex text-xs font-normal">Encrypted</Badge>
+          <Badge variant="outline" className="hidden sm:flex text-[10px] border-primary/20 text-primary bg-primary/5 px-2">Private Session</Badge>
         </header>
 
-        <ScrollArea className="flex-1">
-          <section className="flex flex-col px-4 md:px-6 py-6 max-w-4xl mx-auto w-full">
-            {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center min-h-[50vh] text-center space-y-6">
-                <div className="p-4 bg-primary/10 rounded-full ring-1 ring-primary/20">
-                  <Bot className="w-10 h-10 text-primary" />
-                </div>
-                <h2 className="text-2xl md:text-3xl font-semibold">How are you feeling today?</h2>
+        {/* Scroll Area */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden scroll-smooth" onScroll={handleScroll}>
+          <div className="flex flex-col px-4 md:px-6 py-10 w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto min-h-full">
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center flex-1 py-20 opacity-40">
+                <Sparkles size={48} className="text-primary mb-4" />
+                <h2 className="text-2xl font-bold">How are you feeling?</h2>
               </div>
-            )}
-
-            <AnimatePresence initial={false}>
-              {messages.map((msg, idx) => (
-                <motion.article
-                  key={idx}
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  className={cn("flex w-full my-3", msg.role === "user" ? "justify-end" : "justify-start")}
-                >
-                  <div className={cn("flex gap-3 max-w-[85%] md:max-w-[70%] items-end", msg.role === "user" ? "flex-row-reverse" : "flex-row")}>
-                    <div className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm border ring-1 ring-offset-1 ring-offset-background",
-                      msg.role === "user" ? "bg-primary ring-primary text-primary-foreground" : "bg-muted ring-border text-muted-foreground"
-                    )}>
-                      {msg.role === "user" ? <User size={16} /> : <Bot size={16} />}
+            ) : (
+              messages.map((msg, idx) => (
+                <motion.article key={idx} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={cn("flex w-full my-4", msg.role === "user" ? "justify-end" : "justify-start")}>
+                  <div className={cn("flex gap-4 max-w-[85%] lg:max-w-[75%] items-start", msg.role === "user" ? "flex-row-reverse" : "flex-row")}>
+                    <div className={cn("w-8 h-8 rounded-full flex items-center justify-center shrink-0 border mt-1", msg.role === "user" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border")}>
+                      {msg.role === "user" ? <User size={14} /> : <Bot size={14} />}
                     </div>
-
-                    <div className="flex flex-col gap-2 min-w-0">
-                      <div className={cn(
-                        "px-4 py-3 rounded-2xl shadow-sm text-sm leading-relaxed",
-                        msg.role === "user" ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-muted/60 border border-border/50 rounded-tl-none"
-                      )}>
-                        <div className="prose prose-sm dark:prose-invert max-w-none prose-p:m-0">
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <div className={cn("px-5 py-3.5 rounded-3xl text-sm md:text-base leading-relaxed", msg.role === "user" ? "bg-primary text-primary-foreground rounded-tr-sm shadow-md" : "bg-secondary text-secondary-foreground border border-border/40 rounded-tl-sm shadow-sm")}>
+                        <div className="prose prose-sm dark:prose-invert max-w-none break-words">
                           <ReactMarkdown>{msg.content}</ReactMarkdown>
                         </div>
                       </div>
-
+                      
                       {msg.role === "assistant" && (
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleToggleSpeech(msg.content, idx)}
-                            className={cn(
-                              "h-7 px-2 text-muted-foreground hover:text-primary transition-all text-xs",
-                              isSpeaking === idx && "text-primary bg-primary/10"
-                            )}
-                          >
-                            {isSpeaking === idx ? <VolumeX className="w-3.5 h-3.5 mr-1" /> : <Volume2 className="w-3.5 h-3.5 mr-1" />}
-                            <span className="uppercase font-bold tracking-tight">
-                              {isSpeaking === idx ? "Stop" : "Listen"}
-                            </span>
-                          </Button>
-                          
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary">
-                                <Settings2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-56">
-                              <DropdownMenuLabel className="text-xs">Voice Selection</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <ScrollArea className="h-48">
-                                {availableVoices.map((voice) => (
-                                  <DropdownMenuItem 
-                                    key={voice.name} 
-                                    onClick={() => setSelectedVoiceName(voice.name)}
-                                    className={cn("text-xs", selectedVoiceName === voice.name && "bg-primary/10 text-primary")}
-                                  >
-                                    {voice.name}
-                                  </DropdownMenuItem>
-                                ))}
-                              </ScrollArea>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      )}
+  <div className="flex items-center gap-2 pt-2 transition-opacity duration-300">
+    {/* Listen Button: Forced Contrast */}
+    <Button
+      variant="secondary"
+      size="sm"
+      onClick={() => handleToggleSpeech(msg.content, idx)}
+      className={cn(
+        "h-8 px-3 text-[10px] font-bold rounded-full border shadow-sm transition-all",
+        isSpeaking === idx 
+          ? "bg-primary text-primary-foreground border-primary scale-105" 
+          : "bg-background text-foreground border-border hover:border-primary/50"
+      )}
+    >
+      {isSpeaking === idx ? (
+        <VolumeX size={14} className="mr-1.5" />
+      ) : (
+        <Volume2 size={14} className="mr-1.5" />
+      )}
+      {isSpeaking === idx ? "STOP" : "LISTEN"}
+    </Button>
+
+    {/* Voice Settings: Elevated Z-Index and Contrast */}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button 
+          variant="outline" 
+          size="icon" 
+          className="h-8 w-8 rounded-full border-border/60 bg-background hover:text-primary hover:border-primary/50 shadow-sm"
+        >
+          <Settings2 size={14} />
+        </Button>
+      </DropdownMenuTrigger>
+      
+      {/* Portals help the dropdown "jump" out of the scroll container */}
+      <DropdownMenuContent 
+        align="start" 
+        side="bottom"
+        className="w-64 z-[110] bg-popover/95 backdrop-blur-xl border-border shadow-2xl rounded-2xl p-1"
+      >
+        <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-muted-foreground px-2 py-1.5">
+          System Voices
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator className="bg-border/50" />
+        
+        <ScrollArea className="h-48 pr-2 custom-scrollbar">
+          <div className="space-y-0.5 p-1">
+            {availableVoices.length > 0 ? (
+              availableVoices.map((voice) => (
+                <DropdownMenuItem
+                  key={voice.name}
+                  onClick={() => setSelectedVoiceName(voice.name)}
+                  className={cn(
+                    "text-xs rounded-lg cursor-pointer px-2 py-2 transition-colors",
+                    selectedVoiceName === voice.name 
+                      ? "bg-primary/20 text-primary font-semibold" 
+                      : "hover:bg-muted"
+                  )}
+                >
+                  <div className="flex flex-col">
+                    <span className="truncate">{voice.name}</span>
+                    <span className="text-[9px] opacity-50 uppercase">{voice.lang}</span>
+                  </div>
+                </DropdownMenuItem>
+              ))
+            ) : (
+              <div className="p-4 text-center text-xs text-muted-foreground">
+                No voices detected
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  </div>
+)}
                     </div>
                   </div>
                 </motion.article>
-              ))}
-            </AnimatePresence>
-
-            {isTyping && (
-              <div className="flex gap-3 items-center my-3">
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center border ring-1 ring-border animate-pulse shadow-sm">
-                  <Bot size={16} className="text-muted-foreground" />
-                </div>
-                <div className="flex gap-1.5 items-center">
-                  <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" />
-                  <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce [animation-delay:0.2s]" />
-                  <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce [animation-delay:0.4s]" />
-                </div>
-              </div>
+              ))
             )}
-            <div ref={messagesEndRef} />
-          </section>
-        </ScrollArea>
+            {isTyping && <div className="flex gap-2 items-center text-xs text-muted-foreground animate-pulse p-4"><Loader2 size={12} className="animate-spin" /> Assistant is typing...</div>}
+            <div ref={messagesEndRef} className="h-20 shrink-0" />
+          </div>
+        </div>
 
-        <footer className="border-t border-border/50 bg-background p-4 space-y-3">
-          <div className="max-w-4xl mx-auto space-y-2">
-            <div className={cn(
-              "relative flex items-end gap-2 bg-muted/40 rounded-2xl border border-border/50 px-4 py-2 transition-all focus-within:ring-1 focus-within:ring-primary/30",
-              isCooldown && "opacity-60"
-            )}>
+        {/* Floating Scroll Button */}
+        <AnimatePresence>
+          {showScrollButton && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute bottom-36 left-0 right-0 flex justify-center z-30 pointer-events-none">
+              <Button size="sm" onClick={scrollToBottom} className="rounded-full shadow-xl pointer-events-auto bg-primary text-primary-foreground hover:scale-105 transition-transform px-4 border-2 border-background">
+                <ArrowDown className="w-4 h-4 mr-2" /> Latest Messages
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Input Footer */}
+        <footer className="p-4 md:p-6 bg-gradient-to-t from-background via-background/95 to-transparent shrink-0 z-20">
+          <div className="max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto">
+            <div className="relative flex items-end gap-2 bg-card border border-border/50 rounded-[2rem] p-2 pl-5 focus-within:ring-2 focus-within:ring-primary/20 shadow-lg">
               <textarea
                 ref={textareaRef}
                 value={message}
-                onChange={e => setMessage(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSubmit(e as any))}
-                placeholder={isCooldown ? "Processing..." : "Share what's on your mind..."}
-                disabled={isCooldown}
-                className="flex-1 bg-transparent border-0 focus:ring-0 py-2 text-sm max-h-40 resize-none leading-relaxed"
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSubmit(e as any))}
+                placeholder="Message MindEase..."
+                className="flex-1 bg-transparent border-0 focus:ring-0 py-3 text-sm md:text-base max-h-48 resize-none leading-relaxed placeholder:text-muted-foreground/50"
+                rows={1}
               />
-              <Button
-                type="submit"
-                disabled={!message.trim() || isTyping || isCooldown}
-                onClick={handleSubmit}
-                className="h-9 px-4 shrink-0 rounded-lg shadow-sm"
-              >
-                {isTyping ? <Loader2 className="w-4 h-4 animate-spin" /> : 
-                 isCooldown ? <span className="text-xs font-mono">{cooldownTime}s</span> : 
-                 <Send className="w-4 h-4" />}
+              <Button type="submit" size="icon" disabled={!message.trim() || isTyping} onClick={handleSubmit} className={cn("h-10 w-10 shrink-0 rounded-full transition-all", message.trim() ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80")}>
+                {isTyping ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send size={18} />}
               </Button>
             </div>
-            <div className="text-center text-[10px] md:text-xs text-muted-foreground/80">
-              {isCooldown ? "Allowing a moment for reflection..." : "Your safety is important. In emergencies, contact local services."}
-            </div>
+            <p className="text-[10px] text-center text-muted-foreground/60 mt-3 font-medium">Safe Space: Encryption Enabled</p>
           </div>
         </footer>
       </main>

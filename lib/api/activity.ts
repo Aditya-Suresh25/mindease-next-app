@@ -52,3 +52,34 @@ export async function getActivities(): Promise<{
 
   return response.json();
 }
+
+export async function updateActivity(id: string, data: any): Promise<{ success: boolean; data: any }> {
+  const { API_BASE, getAuthHeaders } = await import("./base");
+  const response = await fetch(`${API_BASE}/api/activity/${id}`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Failed to update activity");
+  }
+
+  return response.json();
+}
+
+export async function deleteActivity(id: string): Promise<{ success: boolean; message: string }> {
+  const { API_BASE, getAuthHeaders } = await import("./base");
+  const response = await fetch(`${API_BASE}/api/activity/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Failed to delete activity");
+  }
+
+  return response.json();
+}

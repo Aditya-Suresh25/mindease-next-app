@@ -141,3 +141,21 @@
   html {
   scroll-behavior: smooth;
 }
+
+/* Ensure dropdowns and sheets pierce through the fixed layout lock */
+[data-radix-portal] {
+  z-index: 100 !important;
+}
+
+/* Thinner, themed scrollbar for the voice selection list */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 10px;
+  opacity: 0.5;
+}

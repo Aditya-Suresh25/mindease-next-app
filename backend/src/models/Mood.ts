@@ -22,6 +22,7 @@ export interface IMood extends Document {
   timestamp: Date;
   createdAt: Date;
   updatedAt: Date;
+  isDeleted: boolean;
 }
 
 const moodSchema = new Schema<IMood>(
@@ -64,6 +65,10 @@ const moodSchema = new Schema<IMood>(
     timestamp: {
       type: Date,
       default: Date.now,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
     },
   },
   {

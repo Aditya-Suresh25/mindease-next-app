@@ -7,17 +7,22 @@ import { Textarea } from "@/components/ui/textarea"; // ✅ Import Textarea
 import { Label } from "@/components/ui/label"; // ✅ Import Label for accessibility
 import { Loader2 } from "lucide-react";
 import { useSession } from "@/lib/contexts/session-context";
-import { trackMood } from "@/lib/api/mood";
+import { trackMood, updateMood } from "@/lib/api/mood";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 interface MoodFormProps {
   onSuccess?: () => void;
+  initialData?: {
+    _id: string;
+    score: number;
+    note?: string;
+  };
 }
 
-export function MoodForm({ onSuccess }: MoodFormProps) {
-  const [moodScore, setMoodScore] = useState(50);
-  const [notes, setNotes] = useState(""); // ✅ New state for notes
+export function MoodForm({ onSuccess, initialData }: MoodFormProps) {
+  const [moodScore, setMoodScore] = useState(initialData?.score ?? 50);
+  const [notes, setNotes] = useState(initialData?.note ?? ""); // ✅ New state for notes
   const [isLoading, setIsLoading] = useState(false);
   const { user, isAuthenticated, loading } = useSession();
   const router = useRouter();
@@ -42,16 +47,25 @@ export function MoodForm({ onSuccess }: MoodFormProps) {
 
     try {
       setIsLoading(true);
-      // ✅ Included notes in the API call
-      await trackMood({ 
-        score: moodScore, 
-        note: notes.trim() 
-      });
-      
-      toast.success("Mood tracked successfully!");
-      onSuccess?.(); 
+
+      if (initialData) {
+        await updateMood(initialData._id, {
+          score: moodScore,
+          note: notes.trim(),
+        });
+        toast.success("Mood updated successfully!");
+      } else {
+        // ✅ Included notes in the API call
+        await trackMood({
+          score: moodScore,
+          note: notes.trim()
+        });
+        toast.success("Mood tracked successfully!");
+      }
+
+      onSuccess?.();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to track mood");
+      toast.error(error instanceof Error ? error.message : "Failed to save mood");
     } finally {
       setIsLoading(false);
     }
@@ -73,9 +87,8 @@ export function MoodForm({ onSuccess }: MoodFormProps) {
           {emotions.map((em) => (
             <div
               key={em.value}
-              className={`cursor-pointer transition-opacity ${
-                Math.abs(moodScore - em.value) < 15 ? "opacity-100" : "opacity-50"
-              }`}
+              className={`cursor-pointer transition-opacity ${Math.abs(moodScore - em.value) < 15 ? "opacity-100" : "opacity-50"
+                }`}
               onClick={() => setMoodScore(em.value)}
             >
               <div className="text-2xl">{em.label}</div>
@@ -109,9 +122,9 @@ export function MoodForm({ onSuccess }: MoodFormProps) {
       </div>
 
       {/* Submit button */}
-      <Button 
-        className="w-full" 
-        onClick={handleSubmit} 
+      <Button
+        className="w-full"
+        onClick={handleSubmit}
         disabled={isLoading || loading}
       >
         {isLoading ? (

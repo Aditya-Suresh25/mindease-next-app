@@ -7,6 +7,7 @@ export interface IActivity extends Document {
   description?: string;
   duration?: number;
   timestamp: Date;
+  isDeleted: boolean;
 }
 
 const activitySchema = new Schema<IActivity>(
@@ -43,6 +44,10 @@ const activitySchema = new Schema<IActivity>(
     timestamp: {
       type: Date,
       default: Date.now,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
     },
   },
   {

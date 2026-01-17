@@ -53,10 +53,11 @@ export const logActivity = async (
   }
 };
 
-export const getActivities = async (req:Request, res:Response) => {
+export const getActivities = async (req: Request, res: Response) => {
   try {
     const activities = await Activity.find({
       userId: req.user.id,
+      isDeleted: false,
     }).sort({ createdAt: -1 });
 
     res.json({
@@ -68,5 +69,60 @@ export const getActivities = async (req:Request, res:Response) => {
       success: false,
       message: "Failed to fetch activities",
     });
+  }
+};
+
+// Update an activity
+export const updateActivity = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const { type, name, description, duration } = req.body;
+    const userId = req.user?._id;
+
+    const activity = await Activity.findOne({ _id: id, userId, isDeleted: false });
+
+    if (!activity) {
+      return res.status(404).json({ message: "Activity not found" });
+    }
+
+    if (type) activity.type = type;
+    if (name) activity.name = name;
+    if (description) activity.description = description;
+    if (duration) activity.duration = duration;
+
+    await activity.save();
+
+    res.json({ success: true, data: activity });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Soft delete an activity
+export const deleteActivity = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?._id;
+
+    const activity = await Activity.findOne({ _id: id, userId, isDeleted: false });
+
+    if (!activity) {
+      return res.status(404).json({ message: "Activity not found" });
+    }
+
+    activity.isDeleted = true;
+    await activity.save();
+
+    res.json({ success: true, message: "Activity deleted successfully" });
+  } catch (error) {
+    next(error);
   }
 };

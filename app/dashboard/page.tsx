@@ -47,6 +47,7 @@ import { ActivityLogger } from "@/components/activities/activity-logger"
 import { getActivities } from "@/lib/api/activity"
 import { getMoodHistory } from "@/lib/api/mood"
 import { getAllChatSessions } from "@/lib/api/chat"
+import { getLatestRecommendation } from "@/lib/api/recommendation"
 
 /* ---------------- Quotes Data ---------------- */
 const supportiveQuotes = [
@@ -73,8 +74,10 @@ export default function DashboardPage() {
   const [moodScore, setMoodScore] = useState(0)
   const [todayActivities, setTodayActivities] = useState(0)
   const [todayTherapySessions, setTodayTherapySessions] = useState(0)
-  const [streak, setStreak] = useState(7) 
+  const [streak, setStreak] = useState(7)
   const [isLoadingStats, setIsLoadingStats] = useState(true)
+  const [aiInsight, setAiInsight] = useState<string | null>(null)
+  const [showCrisisModal, setShowCrisisModal] = useState(false)
 
   /* ---------------- Core Sync ---------------- */
   const fetchDashboardStats = useCallback(async () => {
@@ -85,20 +88,52 @@ export default function DashboardPage() {
       const dayEnd = endOfDay(today)
 
       // Parallel fetching for speed
-      const [moods, activities, sessions] = await Promise.all([
+      const [moods, activities, sessions, recommendation] = await Promise.all([
         getMoodHistory({ startDate: dayStart.toISOString(), endDate: dayEnd.toISOString() }),
         getActivities(),
-        getAllChatSessions()
+        getAllChatSessions(),
+        getLatestRecommendation()
       ])
 
-      // Process Mood
+      if (recommendation.success && recommendation.data) {
+        setAiInsight(recommendation.data.content)
+      }
+
+      // Process Mood & Crisis Detection
       if (moods.success && moods.data.length) {
         const avg = Math.round(
           moods.data.reduce((s: number, m: any) => s + (m.score || 0), 0) / moods.data.length
         )
         setMoodScore(avg)
+
+        // Crisis Detection: Last 3 moods < 30
+        const recentMoods = moods.data.slice(0, 3);
+        const isCrisis = recentMoods.length >= 3 && recentMoods.every((m: any) => m.score < 30);
+
+        // Simple check to avoid spamming
+        if (isCrisis && !sessionStorage.getItem("crisis_shown")) {
+          setShowCrisisModal(true);
+          sessionStorage.setItem("crisis_shown", "true");
+        }
+
+        // Feature 4: Daily Mood Check
+        // Check if there is a mood for today
+        const hasLogToday = moods.data.some((m: any) => {
+          const d = new Date(m.timestamp);
+          return d >= dayStart && d <= dayEnd;
+        });
+
+        if (!hasLogToday && !sessionStorage.getItem("daily_check_skipped")) {
+          // Small delay to let UI load
+          setTimeout(() => setShowMoodModal(true), 1500);
+        }
+
       } else {
         setMoodScore(0)
+        // If no moods at all, definitely prompt
+        if (!sessionStorage.getItem("daily_check_skipped")) {
+          setTimeout(() => setShowMoodModal(true), 1500);
+        }
       }
 
       // Process Activities
@@ -208,7 +243,7 @@ export default function DashboardPage() {
   /* ---------------- Render ---------------- */
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
-      
+
       {/* Ambient Background */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px]" />
@@ -217,9 +252,9 @@ export default function DashboardPage() {
       </div>
 
       <Container className="relative z-10 pt-8 pb-12 space-y-8 md:space-y-12">
-        
+
         {/* 1. Hero Section */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6"
@@ -242,12 +277,12 @@ export default function DashboardPage() {
               </span>
             </h1>
           </div>
-          
+
           {isLoadingStats && (
-             <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-background/50 border border-border/50 backdrop-blur-md shadow-sm">
-                <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                <span className="text-xs font-medium text-muted-foreground">Syncing...</span>
-             </div>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-background/50 border border-border/50 backdrop-blur-md shadow-sm">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <span className="text-xs font-medium text-muted-foreground">Syncing...</span>
+            </div>
           )}
         </motion.div>
 
@@ -265,13 +300,13 @@ export default function DashboardPage() {
             </div>
             <div className="max-w-2xl relative z-10">
               <h3 className="text-sm font-semibold uppercase tracking-widest text-primary mb-3 flex items-center gap-2">
-                <Sparkles className="w-4 h-4" /> Daily Insight
+                <Sparkles className="w-4 h-4" /> {aiInsight ? "AI Insight" : "Daily Insight"}
               </h3>
               <p className="text-xl md:text-2xl font-medium leading-relaxed italic text-foreground/90 mb-4">
-                "{dailyQuote.text}"
+                "{aiInsight || dailyQuote.text}"
               </p>
               <p className="text-sm font-medium text-muted-foreground border-l-2 border-primary/30 pl-3">
-                {dailyQuote.author}
+                {aiInsight ? "MindEase AI" : dailyQuote.author}
               </p>
             </div>
           </div>
@@ -279,22 +314,30 @@ export default function DashboardPage() {
 
         {/* 3. Stats Grid */}
         <motion.div
-           initial={{ opacity: 0, y: 20 }}
-           animate={{ opacity: 1, y: 0 }}
-           transition={{ delay: 0.2 }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
         >
           <div className="flex items-center justify-between mb-4 px-1">
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-muted-foreground" /> Overview
             </h2>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={fetchDashboardStats} 
-              className="h-8 w-8 rounded-full p-0 hover:bg-muted"
-            >
-              <RefreshCw className={cn("w-4 h-4 text-muted-foreground", isLoadingStats && "animate-spin")} />
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => router.push("/stories")}>
+                Read Stories
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => router.push("/history")}>
+                View History
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={fetchDashboardStats}
+                className="h-8 w-8 rounded-full p-0 hover:bg-muted"
+              >
+                <RefreshCw className={cn("w-4 h-4 text-muted-foreground", isLoadingStats && "animate-spin")} />
+              </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
@@ -308,7 +351,7 @@ export default function DashboardPage() {
               >
                 <div className="absolute inset-0 bg-card/40 rounded-[2rem] shadow-sm backdrop-blur-md transition-all group-hover:shadow-md group-hover:bg-card/60" />
                 <div className={cn("absolute inset-0 border rounded-[2rem] opacity-50 transition-colors", stat.bgClass.split(' ')[1])} />
-                
+
                 <div className="relative p-6 h-full flex flex-col justify-between">
                   <div className="flex justify-between items-start mb-4">
                     <div className={cn("p-2.5 rounded-2xl", stat.bgClass.split(' ')[0])}>
@@ -316,18 +359,18 @@ export default function DashboardPage() {
                     </div>
                     {stat.trend && (
                       <span className={cn(
-                        "text-[10px] font-bold px-2 py-1 rounded-full border bg-background/50 backdrop-blur-sm", 
+                        "text-[10px] font-bold px-2 py-1 rounded-full border bg-background/50 backdrop-blur-sm",
                         stat.color
                       )}>
                         {stat.trend}
                       </span>
                     )}
                   </div>
-                  
+
                   <div>
                     <h3 className="text-2xl font-bold tracking-tight mb-1">{stat.value}</h3>
                     <p className="text-xs font-medium text-muted-foreground">{stat.description}</p>
-                    
+
                     {stat.showProgress && (
                       <div className="mt-4 space-y-1.5">
                         <div className="flex justify-between text-[10px] text-muted-foreground font-medium">
@@ -357,13 +400,13 @@ export default function DashboardPage() {
                 onClick={action.onClick}
                 className={cn(
                   "relative group overflow-hidden rounded-[2rem] p-6 text-left transition-all duration-300",
-                  action.isPrimary 
-                    ? "shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-1" 
+                  action.isPrimary
+                    ? "shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-1"
                     : "bg-card/40 border border-border/50 hover:bg-card/60 hover:border-primary/20 backdrop-blur-md"
                 )}
               >
                 <div className={cn("absolute inset-0 transition-colors duration-300", action.bgGradient)} />
-                
+
                 <div className="relative z-10 flex items-center gap-4">
                   <div className={cn(
                     "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110",
@@ -393,10 +436,10 @@ export default function DashboardPage() {
 
         {/* 5. Anxiety Games Section */}
         <motion.div
-           initial={{ opacity: 0, y: 20 }}
-           animate={{ opacity: 1, y: 0 }}
-           transition={{ delay: 0.4 }}
-           className="pt-4"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="pt-4"
         >
           <AnxietyGames />
         </motion.div>
@@ -404,7 +447,12 @@ export default function DashboardPage() {
       </Container>
 
       {/* Modals */}
-      <Dialog open={showMoodModal} onOpenChange={setShowMoodModal}>
+      <Dialog open={showMoodModal} onOpenChange={(open) => {
+        setShowMoodModal(open);
+        if (!open) {
+          sessionStorage.setItem("daily_check_skipped", "true");
+        }
+      }}>
         <DialogContent className="sm:max-w-md rounded-[2rem] bg-card/95 backdrop-blur-xl border-primary/10">
           <DialogHeader className="space-y-3">
             <div className="mx-auto w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center">
@@ -432,6 +480,30 @@ export default function DashboardPage() {
           fetchDashboardStats()
         }}
       />
+
+      {/* Crisis Modal */}
+      <Dialog open={showCrisisModal} onOpenChange={setShowCrisisModal}>
+        <DialogContent className="sm:max-w-md rounded-[2rem] bg-card/95 backdrop-blur-xl border-rose-500/20">
+          <DialogHeader>
+            <div className="mx-auto w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center mb-2">
+              <Heart className="h-6 w-6 text-rose-500" />
+            </div>
+            <DialogTitle className="text-center text-xl">We noticed you've been feeling low</DialogTitle>
+            <DialogDescription className="text-center pt-2">
+              It takes strength to face these feelings. You don't have to go through this alone.
+              Would you like to explore some support resources?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 pt-4">
+            <Button className="w-full bg-rose-500 hover:bg-rose-600 text-white" onClick={() => router.push("/resources")}>
+              View Resources
+            </Button>
+            <Button variant="ghost" className="w-full" onClick={() => setShowCrisisModal(false)}>
+              I'm okay
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

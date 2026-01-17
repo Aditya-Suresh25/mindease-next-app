@@ -91,3 +91,34 @@ export async function getMoodStats(
 
   return response.json();
 }
+
+export async function updateMood(id: string, data: any): Promise<{ success: boolean; data: any }> {
+  const { API_BASE, getAuthHeaders } = await import("./base");
+  const response = await fetch(`${API_BASE}/api/mood/${id}`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Failed to update mood");
+  }
+
+  return response.json();
+}
+
+export async function deleteMood(id: string): Promise<{ success: boolean; message: string }> {
+  const { API_BASE, getAuthHeaders } = await import("./base");
+  const response = await fetch(`${API_BASE}/api/mood/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Failed to delete mood");
+  }
+
+  return response.json();
+}
