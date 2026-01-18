@@ -104,3 +104,36 @@ export const logout = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Server error", error });
   }
 };
+
+export const updateProfile = async (req: any, res: any) => {
+  try {
+    const { name, notifications, privacySettings, preferences } = req.body;
+    const userId = req.user._id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (name) user.name = name;
+    if (notifications) user.notifications = { ...user.notifications, ...notifications };
+    if (privacySettings) user.privacySettings = { ...user.privacySettings, ...privacySettings };
+    if (preferences) user.preferences = { ...user.preferences, ...preferences };
+
+    await user.save();
+
+    res.json({
+      message: "Profile updated successfully", user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        notifications: user.notifications,
+        privacySettings: user.privacySettings,
+        preferences: user.preferences
+      }
+    });
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};

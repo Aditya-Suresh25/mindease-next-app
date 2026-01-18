@@ -13,6 +13,7 @@ export interface ChatMessage {
       recommendedApproach: string;
       progressIndicators: string[];
     };
+    suggestedResponses?: string[];
   };
 }
 
@@ -37,6 +38,7 @@ export interface ApiResponse {
     technique: string;
     goal: string;
     progress: any[];
+    suggestedResponses?: string[];
   };
 }
 

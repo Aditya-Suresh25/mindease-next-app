@@ -35,7 +35,8 @@ import {
   Quote as QuoteIcon,
   Zap,
   TrendingUp,
-  RefreshCw
+  RefreshCw,
+  PhoneCall
 } from "lucide-react"
 
 // Feature Components
@@ -61,7 +62,12 @@ const supportiveQuotes = [
 ]
 
 export default function DashboardPage() {
+
   const router = useRouter()
+
+  const handleSettings = () => {
+    router.push("/settings")
+  }
   const { user } = useSession()
 
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -238,6 +244,14 @@ export default function DashboardPage() {
       isPrimary: true,
       onClick: () => router.push("/therapy/new"),
     },
+    {
+      title: "Emergency Aid",
+      description: "Get immediate help",
+      icon: PhoneCall,
+      iconColor: "text-rose-500",
+      bgGradient: "hover:bg-rose-500/5",
+      onClick: () => router.push("/resources"),
+    },
   ]
 
   /* ---------------- Render ---------------- */
@@ -393,7 +407,7 @@ export default function DashboardPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {quickActions.map((action, idx) => (
               <button
                 key={action.title}

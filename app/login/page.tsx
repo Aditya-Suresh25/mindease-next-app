@@ -4,15 +4,17 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { loginUser } from "@/lib/api/auth";
+import { signIn, useSession as useNextAuthSession } from "next-auth/react";
+import { useEffect } from "react";
 import { useSession } from "@/lib/contexts/session-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Lock, 
-  Mail, 
-  Sparkles, 
-  Loader2, 
-  ArrowRight 
+import {
+  Lock,
+  Mail,
+  Sparkles,
+  Loader2,
+  ArrowRight
 } from "lucide-react";
 
 export default function LoginPage() {
@@ -22,6 +24,24 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const { data: session } = useNextAuthSession();
+
+  // Sync NextAuth session to localStorage for compatibility with existing API calls
+  useEffect(() => {
+    if (session && (session as any).accessToken) {
+      localStorage.setItem("token", (session as any).accessToken);
+      // Wait a tick then update global session state
+      setTimeout(() => {
+        checkSession();
+        router.push("/dashboard");
+      }, 100);
+    }
+  }, [session, router, checkSession]);
+
+  const handleGoogleLogin = () => {
+    setLoading(true);
+    signIn("google", { callbackUrl: "/dashboard" });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +72,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-background relative overflow-hidden p-4">
-      
+
       {/* 1. Ambient Background Effects */}
       <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-secondary/20 rounded-full blur-[120px] pointer-events-none" />
@@ -60,7 +80,7 @@ export default function LoginPage() {
       {/* 2. Main Card Container */}
       <div className="w-full max-w-lg z-10">
         <div className="bg-card/70 backdrop-blur-xl border border-border/50 shadow-2xl rounded-[2.5rem] p-8 md:p-12 overflow-hidden relative group">
-          
+
           {/* Subtle top shimmer */}
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-50" />
 
@@ -79,7 +99,7 @@ export default function LoginPage() {
 
           {/* Form Section */}
           <form className="space-y-5" onSubmit={handleSubmit}>
-            
+
             {/* Email Input */}
             <div className="space-y-1.5">
               <div className="relative group/input">
@@ -146,6 +166,25 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
+
+          <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border/50" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground/50 font-medium">Original Choice</span>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            className="w-full h-12 rounded-xl border-border/50 hover:bg-muted/50 hover:text-primary transition-all duration-300 gap-3"
+            onClick={handleGoogleLogin}
+            disabled={loading}
+          >
+            <svg className="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24"><path d="M12.0003 20.45c-4.6667 0-8.4501-3.7834-8.4501-8.45 0-4.6667 3.7834-8.45 8.4501-8.45 2.2833 0 4.3833.8167 6.0167 2.3 l-2.3 2.3c-.9334-.9-2.2-1.4667-3.7167-1.4667-3.2166 0-5.8333 2.6167-5.8333 5.8334 0 3.2166 2.6167 5.8333 5.8333 5.8333 2.9667 0 5.15-2.0333 5.3-4.8333h-5.3v-3.4167h8.8334c.15.5834.25 1.1834.25 1.8334 0 5.25-3.5167 8.9833-9.0834 8.9166Z" fill="currentColor" /></svg>
+            Sign in with Google
+          </Button>
 
           {/* Footer Link */}
           <div className="mt-8 pt-6 border-t border-border/50 text-center">

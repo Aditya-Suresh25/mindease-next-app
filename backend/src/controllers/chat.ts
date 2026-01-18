@@ -163,7 +163,8 @@ export const sendMessage = async (req: Request, res: Response) => {
       "themes": ["string"],
       "riskLevel": number,
       "recommendedApproach": "string",
-      "progressIndicators": ["string"]
+      "progressIndicators": ["string"],
+      "suggestedResponses": ["string (max 3 short user reply options)"]
     }`;
 
     let analysis: any = null;
@@ -274,9 +275,7 @@ export const getSessionHistory = async (req: Request, res: Response) => {
     const { sessionId } = req.params;
     const userId = new Types.ObjectId(req.user.id);
 
-    const session = (await ChatSession.findById(
-      sessionId
-    ).exec()) as IChatSession;
+    const session = await ChatSession.findOne({ sessionId });
     if (!session) {
       return res.status(404).json({ message: "Session not found" });
     }

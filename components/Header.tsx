@@ -15,11 +15,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { 
-  LayoutDashboard, 
-  User, 
-  LogOut, 
-  Sparkles, 
+import {
+  LayoutDashboard,
+  User,
+  LogOut,
+  Sparkles,
   MessageCircleHeart,
   Sun,
   Moon
@@ -51,7 +51,7 @@ export function Header() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-primary/10 bg-background/60 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        
+
         {/* Logo Section */}
         <div className="flex items-center gap-8">
           <button
@@ -85,12 +85,12 @@ export function Header() {
 
         {/* Action Section */}
         <div className="flex items-center gap-2 sm:gap-4">
-          
+
           {/* Direct Theme Toggle Button */}
           {mounted && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={toggleTheme}
               className="rounded-full w-9 h-9 border border-primary/10 hover:bg-primary/5 relative overflow-hidden"
             >
@@ -133,17 +133,17 @@ export function Header() {
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator className="bg-primary/10" />
-                    
+
                     <DropdownMenuItem onClick={() => router.push("/dashboard")} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg">
                       <LayoutDashboard className="w-4 h-4 text-primary" /> Dashboard
                     </DropdownMenuItem>
 
-                    <DropdownMenuItem onClick={() => router.push("/profile")} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg">
+                    <DropdownMenuItem onClick={() => router.push("/settings")} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg">
                       <User className="w-4 h-4 text-primary" /> Profile Settings
                     </DropdownMenuItem>
 
                     <DropdownMenuSeparator className="bg-primary/10" />
-                    
+
                     <DropdownMenuItem className="flex items-center gap-2 cursor-pointer p-2 rounded-lg text-red-500 focus:bg-red-500/10 focus:text-red-500" onClick={logout}>
                       <LogOut className="w-4 h-4" /> Logout
                     </DropdownMenuItem>
