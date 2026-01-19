@@ -39,7 +39,6 @@ export function Header() {
   }, []);
 
   const navLinks = [
-    { name: "Therapy", href: "/therapy", icon: MessageCircleHeart },
     { name: "Features", href: "/#features" },
     { name: "How it Works", href: "/#how-it-works" },
   ];

@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import React from "react";
 import { Ripple } from "@/components/ui/ripple";
+import { EcosystemSection } from "@/components/landing/ecosystem-section";
 
 export default function Home() {
   const emotions = [
@@ -196,11 +197,10 @@ export default function Home() {
                 {emotions.map((em) => (
                   <div
                     key={em.value}
-                    className={`transition-all duration-500 ease-out cursor-pointer hover:scale-105 ${
-                      Math.abs(emotion - em.value) < 15
-                        ? "opacity-100 scale-110 transform-gpu"
-                        : "opacity-50 scale-100"
-                    }`}
+                    className={`transition-all duration-500 ease-out cursor-pointer hover:scale-105 ${Math.abs(emotion - em.value) < 15
+                      ? "opacity-100 scale-110 transform-gpu"
+                      : "opacity-50 scale-100"
+                      }`}
                     onClick={() => setEmotion(em.value)}
                   >
                     <div className="text-2xl transform-gpu">
@@ -270,56 +270,8 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* Enhanced Features Grid */}
-      <section id="features"className="relative py-20 px-4 overflow-hidden">
-        {/* <div className="absolute inset-0 bg-gradient-to-b from-background via-background/50 to-background" /> */}
-
-        <div className="max-w-6xl mx-auto">
-          <motion.div className="text-center mb-16 space-y-4 text-white ">
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-primary/90 to-primary bg-clip-text text-transparent dark:text-primary/90">
-              How MindEase Helps You
-            </h2>
-            <p className="text-foreground dark:text-foreground/95 max-w-2xl mx-auto font-medium text-lg">
-              Experience a new kind of emotional support, powered by empathetic
-              AI
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative">
-            {features.map((feature, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: feature.delay, duration: 0.5 }}
-                viewport={{ once: true }}
-              >
-                <Card className="group relative overflow-hidden border border-primary/10 hover:border-primary/20 transition-all duration-300 h-[200px] bg-card/30 dark:bg-card/80 backdrop-blur-sm">
-                  <div
-                    className={`absolute inset-0 bg-gradient-to-br ${feature.color} to-transparent opacity-0 group-hover:opacity-20 transition-opacity duration-500 dark:group-hover:opacity-30`}
-                  />
-                  <CardHeader className="pb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-primary/10 dark:bg-primary/20 group-hover:bg-primary/20 dark:group-hover:bg-primary/30 transition-colors duration-300">
-                        <feature.icon className="w-5 h-5 text-primary dark:text-primary/90" />
-                      </div>
-                      <h3 className="font-semibold tracking-tight text-foreground/90 dark:text-foreground">
-                        {feature.title}
-                      </h3>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground/90 dark:text-muted-foreground leading-relaxed">
-                      {feature.description}
-                    </p>
-                  </CardContent>
-                  <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/20 dark:via-primary/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Ecosystem Section - Replaces Features Grid */}
+      <EcosystemSection />
 
       {/* How It Works Section - FULLY THEMED */}
       <section
@@ -327,19 +279,19 @@ export default function Home() {
         // FIX: Background uses theme background
         className="bg-gradient-to-b from-background/50 to-background relative py-20 md:py-32 overflow-hidden"
       >
-        
+
         {/* Background decoration */}
-        <div 
+        <div
           // FIX: Uses primary theme color
           className="absolute top-1/4 left-0 w-[300px] h-[300px] rounded-full blur-[100px] bg-primary/10 opacity-50"
         ></div>
-        <div 
+        <div
           // FIX: Uses secondary theme color
           className="absolute bottom-1/4 right-0 w-[350px] h-[350px] rounded-full blur-[100px] bg-secondary/10 opacity-50"
         ></div>
 
         <div className="max-w-7xl mx-auto px-6 md:px-8 relative z-10">
-          
+
           {/* Section Header */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -357,7 +309,7 @@ export default function Home() {
                 Simple & Effective
               </span>
             </div>
-            
+
             <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
               How
               <span
@@ -374,7 +326,7 @@ export default function Home() {
 
           {/* Steps */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 relative">
-            
+
             {/* Connecting Lines (Desktop) */}
             <div
               // FIX: Line uses primary/secondary gradient
@@ -391,14 +343,14 @@ export default function Home() {
                 className="relative"
               >
                 <div className="flex flex-col items-center text-center">
-                  
+
                   {/* Number Badge (uses step.numberBg) */}
                   <div
                     className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-lg relative z-10 ${step.numberBg}`}
                   >
                     <span className="text-2xl font-bold text-white">{step.number}</span>
                   </div>
-                  
+
                   {/* Icon (uses step.iconColors) */}
                   <div
                     // FIX: Uses card background
@@ -437,33 +389,33 @@ export default function Home() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 {/* Primary Button */}
-               <Link 
-    href="/signup" 
-    passHref 
-    legacyBehavior // Recommended when wrapping a custom inner element like <button>
->
-    <button
-        // FIX: Matches your Hero CTA button colors
-        className="text-white px-10 py-4 rounded-full text-base font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2 bg-gradient-to-r from-primary via-primary/90 to-secondary hover:to-primary shadow-primary/20 hover:shadow-primary/30"
-    >
-        Get Started for Free
-        <ArrowRight className="w-5 h-5" strokeWidth={2.5} />
-    </button>
-</Link>
- 
-                
+                <Link
+                  href="/signup"
+                  passHref
+                  legacyBehavior // Recommended when wrapping a custom inner element like <button>
+                >
+                  <button
+                    // FIX: Matches your Hero CTA button colors
+                    className="text-white px-10 py-4 rounded-full text-base font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2 bg-gradient-to-r from-primary via-primary/90 to-secondary hover:to-primary shadow-primary/20 hover:shadow-primary/30"
+                  >
+                    Get Started for Free
+                    <ArrowRight className="w-5 h-5" strokeWidth={2.5} />
+                  </button>
+                </Link>
+
+
                 {/* Secondary Button: WRAPPED WITH LINK */}
-            <Link 
-                href="/learn-more" // <--- TARGET ROUTE FOR YOUR FAQ PAGE
-                passHref 
-            >
-                <button
+                <Link
+                  href="/learn-more" // <--- TARGET ROUTE FOR YOUR FAQ PAGE
+                  passHref
+                >
+                  <button
                     // FIX: Matches your standard outline style
                     className="bg-card border-2 px-10 py-4 rounded-full text-base font-semibold shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 border-primary/20 text-primary hover:border-primary/40"
-                >
+                  >
                     Learn More
-                </button>
-            </Link>
+                  </button>
+                </Link>
               </div>
             </div>
           </motion.div>
@@ -506,9 +458,8 @@ export default function Home() {
               {welcomeSteps.map((_, index) => (
                 <div
                   key={index}
-                  className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                    index === currentStep ? "bg-primary w-4" : "bg-primary/20"
-                  }`}
+                  className={`w-2 h-2 rounded-full transition-all duration-300 ${index === currentStep ? "bg-primary w-4" : "bg-primary/20"
+                    }`}
                 />
               ))}
             </div>
@@ -543,6 +494,6 @@ export default function Home() {
       </Dialog>
     </div>
 
-    
+
   );
 }

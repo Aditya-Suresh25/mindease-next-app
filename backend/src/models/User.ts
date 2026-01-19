@@ -17,6 +17,11 @@ export interface IUser extends Document {
     theme: "light" | "dark" | "system";
     language: string;
   };
+  stats: {
+    streak: number;
+    lastActiveDate: Date | null;
+    totalActiveDays: number;
+  };
 }
 
 const UserSchema = new Schema<IUser>(
@@ -36,6 +41,11 @@ const UserSchema = new Schema<IUser>(
     preferences: {
       theme: { type: String, default: "system" },
       language: { type: String, default: "en" },
+    },
+    stats: {
+      streak: { type: Number, default: 0 },
+      lastActiveDate: { type: Date, default: null },
+      totalActiveDays: { type: Number, default: 0 },
     },
   },
   { timestamps: true }

@@ -12,6 +12,8 @@ export interface ChatMessage {
       riskLevel: number;
       recommendedApproach: string;
       progressIndicators: string[];
+      isCrisis?: boolean;
+      safetyFlags?: string[];
     };
     suggestedResponses?: string[];
   };
@@ -27,12 +29,15 @@ export interface ChatSession {
 export interface ApiResponse {
   message: string;
   response?: string;
+  cooldown?: number;
   analysis?: {
     emotionalState: string;
     themes: string[];
     riskLevel: number;
     recommendedApproach: string;
     progressIndicators: string[];
+    isCrisis?: boolean;
+    safetyFlags?: string[];
   };
   metadata?: {
     technique: string;
@@ -45,6 +50,7 @@ export interface ApiResponse {
 import { API_BASE, getAuthHeaders } from "./base";
 
 export const createChatSession = async (): Promise<string> => {
+  // ... existing createChatSession
   try {
     console.log("Creating new chat session...");
     const token = localStorage.getItem("token");
@@ -76,6 +82,7 @@ export const createChatSession = async (): Promise<string> => {
   }
 };
 
+
 export const sendChatMessage = async (
   sessionId: string,
   message: string
@@ -97,11 +104,12 @@ export const sendChatMessage = async (
 
       // If AI quota/rate-limit, return a friendly fallback response instead of throwing
       if (status === 429 || /quota|too many requests|exceeded/i.test(String(error?.message || ""))) {
-        const retryAfter = response.headers.get("retry-after") || error?.retryDelay || null;
+        const retryAfter = error?.retryAfter || 60; // Get from backend or default
         const fallback: ApiResponse = {
           message: "AI quota exceeded. Returning fallback response.",
           response:
             "I hear you — that sounds really frustrating. It can help to try a short grounding exercise: take three deep breaths, notice five things you can see, four things you can touch, three things you can hear. If you'd like, we can continue when the service is available.",
+          cooldown: retryAfter, // Pass cooldown to UI
           analysis: {
             emotionalState: "distressed",
             themes: ["attention", "concentration"],
@@ -116,8 +124,6 @@ export const sendChatMessage = async (
           },
         };
 
-        // attach retry info if available
-        (fallback as any).retryAfter = retryAfter;
         return fallback;
       }
 

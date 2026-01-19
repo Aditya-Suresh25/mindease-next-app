@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogHeader,
+  DialogTitle,
 } from "../ui/dialog"
 import { Input } from "../ui/input"
 import { Label } from "../ui/label"
@@ -16,7 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { DialogTitle } from "@radix-ui/react-dialog"
 import { Button } from "../ui/button"
 import { logActivity as apiLogActivity, updateActivity } from "@/lib/api/activity"
 

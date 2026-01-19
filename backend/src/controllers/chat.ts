@@ -6,7 +6,9 @@ import { logger } from "../utils/logger";
 import { inngest } from "../inngest/index";
 import { User } from "../models/User";
 import { InngestSessionResponse, InngestEvent } from "../types/inngest";
+
 import { Types } from "mongoose";
+import { updateUserStreak } from "../utils/streak";
 
 // Initialize Gemini API
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -15,6 +17,7 @@ export const getAllSessions = async (req: any, res: any) => {
   try {
     const userId = req.user._id;
     const sessions = await ChatSession.find({ userId }).sort({ updatedAt: -1 });
+    logger.info(`Retrieved ${sessions.length} sessions for user ${userId} from DB.`);
     res.json(sessions);
   } catch (error) {
     console.error('Error fetching sessions:', error);
@@ -53,6 +56,7 @@ export const createChatSession = async (req: any, res: any) => {
     });
 
     await session.save();
+    logger.info(`Session created and saved to DB. ID: ${session.sessionId}, User: ${userId}`);
 
     res.status(201).json({
       message: "Chat session created successfully",
@@ -93,12 +97,30 @@ export const deleteChatSession = async (req: Request, res: Response) => {
 };
 
 
+// In-memory map for rate limiting (Debounce)
+const sessionLastRequestMap = new Map<string, number>();
+const MIN_REQUEST_INTERVAL_MS = 2000; // 2 seconds between messages
+
 // Send a message in the chat session
 export const sendMessage = async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
     const { message } = req.body;
     const userId = new Types.ObjectId(req.user.id);
+
+    // 1. Debounce Check
+    const lastRequest = sessionLastRequestMap.get(sessionId) || 0;
+    const now = Date.now();
+    if (now - lastRequest < MIN_REQUEST_INTERVAL_MS) {
+      const waitTime = Math.ceil((MIN_REQUEST_INTERVAL_MS - (now - lastRequest)) / 1000);
+      logger.warn(`Debounce blocked request for session ${sessionId}. Wait: ${waitTime}s`);
+      return res.status(429).json({
+        message: "Please wait a moment before sending another message.",
+        retryAfter: waitTime,
+        cooldown: waitTime
+      });
+    }
+    sessionLastRequestMap.set(sessionId, now);
 
     logger.info("Processing message:", { sessionId, message });
 
@@ -121,23 +143,16 @@ export const sendMessage = async (req: Request, res: Response) => {
         message,
         history: session.messages,
         memory: {
-          userProfile: {
-            emotionalState: [],
-            riskLevel: 0,
-            preferences: {},
-          },
-          sessionContext: {
-            conversationThemes: [],
-            currentTechnique: null,
-          },
+          userProfile: { emotionalState: [], riskLevel: 0, preferences: {} },
+          sessionContext: { conversationThemes: [], currentTechnique: null },
         },
         goals: [],
         systemPrompt: `You are an AI therapist assistant. Your role is to:
-        1. Provide empathetic and supportive responses
-        2. Use evidence-based therapeutic techniques
-        3. Maintain professional boundaries
-        4. Monitor for risk factors
-        5. Guide users toward their therapeutic goals`,
+          1. Provide empathetic and supportive responses
+          2. Use evidence-based therapeutic techniques
+          3. Maintain professional boundaries
+          4. Monitor for risk factors
+          5. Guide users toward their therapeutic goals`,
       },
     };
 
@@ -179,14 +194,27 @@ export const sendMessage = async (req: Request, res: Response) => {
       logger.info("Message analysis:", analysis);
     } catch (aiError: any) {
       logger.error("AI analysis failed:", aiError);
-      const msg = aiError?.message || String(aiError);
+      const msg = aiError?.message || String(aiError); // e.g. "Candidate was blocked due to safety"
+
+      // Fallback analysis if AI fails
+      analysis = {
+        emotionalState: "neutral",
+        themes: [],
+        riskLevel: 0,
+        recommendedApproach: "supportive",
+        progressIndicators: [],
+        suggestedResponses: []
+      };
+
       if (/quota|Too Many Requests|429|exceeded/i.test(msg)) {
         return res.status(429).json({
           message: "AI quota exceeded. Please try again later.",
           error: msg,
+          retryAfter: 60, // Default 60s for quota issues
+          cooldown: 60
         });
       }
-      return res.status(500).json({ message: "AI analysis failed", error: msg });
+      // Continue execution even if analysis fails (unless it's rate limit), using fallback
     }
 
     // Generate therapeutic response
@@ -217,6 +245,8 @@ export const sendMessage = async (req: Request, res: Response) => {
         return res.status(429).json({
           message: "AI quota exceeded. Please try again later.",
           error: msg,
+          retryAfter: 60,
+          cooldown: 60
         });
       }
       return res.status(500).json({ message: "AI response generation failed", error: msg });
@@ -248,7 +278,7 @@ export const sendMessage = async (req: Request, res: Response) => {
     await session.save();
     logger.info("Session updated successfully:", { sessionId });
 
-    // Return the response
+    // Return the response with COOLDOWN to pace the user
     res.json({
       response,
       message: response,
@@ -259,6 +289,7 @@ export const sendMessage = async (req: Request, res: Response) => {
           riskLevel: analysis.riskLevel,
         },
       },
+      cooldown: 3, // Standard 3s cooldown after successful message
     });
   } catch (error) {
     logger.error("Error in sendMessage:", error);

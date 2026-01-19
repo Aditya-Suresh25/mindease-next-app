@@ -19,6 +19,8 @@ import {
   ArrowDown,
   Sparkles,
   Shield,
+  PhoneCall,
+  ArrowRight,
 } from "lucide-react";
 import { RecommendationCard } from "@/components/chat/recommendation-card";
 import { cn } from "@/lib/utils";
@@ -74,6 +76,19 @@ export default function TherapyPage() {
   // Suggestions State
   const [suggestions, setSuggestions] = useState<string[]>([]);
 
+  // Cooldown State
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (cooldown > 0) {
+      interval = setInterval(() => {
+        setCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [cooldown]);
+
   // Update suggestions when a new message arrives with metadata
   useEffect(() => {
     if (messages.length > 0) {
@@ -87,6 +102,7 @@ export default function TherapyPage() {
   }, [messages]);
 
   const handleSuggestionClick = (text: string) => {
+    if (cooldown > 0) return;
     setMessage(text);
     setSuggestions([]);
     // Optional: auto-submit could go here if we wanted to trigger handleSubmit immediately
@@ -127,7 +143,9 @@ export default function TherapyPage() {
         if (!sessionId || sessionId === "new") {
           const newId = await createChatSession();
           setSessionId(newId);
-          window.history.pushState({}, "", `/therapy/${newId}`);
+          // Use replaceState to update URL without adding to history stack, so 'Back' works better
+          window.history.replaceState({}, "", `/therapy/${newId}`);
+          setRefreshSidebar(prev => prev + 1); // <--- Add this to refresh sidebar immediately
         } else {
           const history = await getChatHistory(sessionId);
           if (Array.isArray(history)) {
@@ -190,7 +208,7 @@ export default function TherapyPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || isTyping || !sessionId) return;
+    if (!message.trim() || isTyping || !sessionId || cooldown > 0) return;
     setUserScrolledUp(false);
     const userMsg: ChatMessage = { role: "user", content: message, timestamp: new Date() };
     setMessages((prev) => [...prev, userMsg]);
@@ -200,10 +218,22 @@ export default function TherapyPage() {
       const response = await sendChatMessage(sessionId, userMsg.content);
       const parsed = typeof response === "string" ? JSON.parse(response) : response;
 
+      // Handle Cooldown
+      if (parsed.cooldown) {
+        setCooldown(parsed.cooldown);
+      }
+
       setMessages((prev) => [...prev, {
         role: "assistant",
         content: parsed.response || parsed.message || "I'm listening.",
-        timestamp: new Date()
+        timestamp: new Date(),
+        metadata: {
+          analysis: parsed.analysis,
+          technique: parsed.metadata?.technique || "general_support",
+          goal: parsed.metadata?.goal || "support",
+          progress: parsed.metadata?.progress || [],
+          ...parsed.metadata
+        }
       }]);
       // FORCE SIDEBAR REFRESH: This ensures the 'New Session' name updates 
       // to the first message content in the sidebar immediately.
@@ -254,7 +284,7 @@ export default function TherapyPage() {
   if (!mounted || isLoading) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex bg-background text-foreground overflow-hidden font-sans">
+    <div className="flex h-[calc(100vh-4rem)] bg-background text-foreground overflow-hidden font-sans border-t border-border/10">
       {/* Sidebar Desktop - Liquid Glass */}
       <aside className="hidden lg:flex flex-col w-80 border-r border-border/10 shrink-0 bg-white/10 dark:bg-black/10 backdrop-blur-xl">
         <SidebarContentComponent
@@ -385,6 +415,31 @@ export default function TherapyPage() {
                           />
                         )}
 
+                        {/* Crisis / SOS Alert */}
+                        {msg.metadata?.analysis?.isCrisis && (
+                          <div className="w-full max-w-sm mt-4 mb-2 overflow-hidden rounded-xl border border-red-500/30 bg-red-500/10 dark:bg-red-950/30">
+                            <div className="p-4 flex gap-4">
+                              <div className="h-10 w-10 shrink-0 rounded-full bg-red-500/10 flex items-center justify-center text-red-500">
+                                <Shield className="h-5 w-5" />
+                              </div>
+                              <div className="flex-1 space-y-1">
+                                <h4 className="font-bold text-red-600 dark:text-red-400">Help is Available</h4>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                  You are not alone. If you are in immediate danger, please contact emergency services.
+                                </p>
+                                <div className="pt-2 flex flex-col gap-2">
+                                  <Button variant="destructive" size="sm" className="w-full justify-start gap-2 h-8" onClick={() => window.open("tel:988")}>
+                                    <PhoneCall size={14} /> Call 988 (Crisis Lifeline)
+                                  </Button>
+                                  <Button variant="outline" size="sm" className="w-full justify-start gap-2 h-8 border-red-500/20 hover:bg-red-500/5 text-red-600 dark:text-red-400" onClick={() => router.push("/resources")}>
+                                    <ArrowRight size={14} /> View All Resources
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
                         {msg.role === "assistant" && (
                           <div className="flex items-center gap-2 pt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                             <Button
@@ -436,7 +491,7 @@ export default function TherapyPage() {
           <div className="max-w-4xl mx-auto relative">
             {/* Suggestions Pills */}
             <AnimatePresence>
-              {suggestions.length > 0 && !isTyping && (
+              {suggestions.length > 0 && !isTyping && cooldown === 0 && (
                 <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-none justify-center">
                   {suggestions.map((suggestion, i) => (
                     <motion.button
@@ -463,18 +518,25 @@ export default function TherapyPage() {
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSubmit(e as any))}
-                  placeholder="Type your message..."
-                  className="flex-1 bg-transparent border-0 focus:ring-0 py-4 text-[15px] max-h-48 resize-none leading-relaxed placeholder:text-muted-foreground/40 font-medium"
+                  placeholder={cooldown > 0 ? `You can continue in ${cooldown} seconds` : "Type your message..."}
+                  disabled={cooldown > 0}
+                  className="flex-1 bg-transparent border-0 focus:ring-0 py-4 text-[15px] max-h-48 resize-none leading-relaxed placeholder:text-muted-foreground/40 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   rows={1}
                 />
                 <Button
                   type="submit"
                   size="icon"
-                  disabled={!message.trim() || isTyping}
+                  disabled={!message.trim() || isTyping || cooldown > 0}
                   onClick={handleSubmit}
-                  className={cn("h-11 w-11 shrink-0 rounded-full transition-all duration-300 shadow-lg mb-0.5 mr-0.5", message.trim() ? "bg-primary text-primary-foreground hover:scale-105 hover:shadow-primary/25" : "bg-muted/50 text-muted-foreground hover:bg-muted/80")}
+                  className={cn("h-11 w-11 shrink-0 rounded-full transition-all duration-300 shadow-lg mb-0.5 mr-0.5", message.trim() && !cooldown ? "bg-primary text-primary-foreground hover:scale-105 hover:shadow-primary/25" : "bg-muted/50 text-muted-foreground hover:bg-muted/80")}
                 >
-                  {isTyping ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send size={18} className={cn(message.trim() && "ml-0.5")} />}
+                  {cooldown > 0 ? (
+                    <span className="text-[10px] font-bold">{cooldown}</span>
+                  ) : isTyping ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Send size={18} className={cn(message.trim() && "ml-0.5")} />
+                  )}
                 </Button>
               </div>
             </div>

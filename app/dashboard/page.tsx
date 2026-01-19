@@ -49,6 +49,7 @@ import { getActivities } from "@/lib/api/activity"
 import { getMoodHistory } from "@/lib/api/mood"
 import { getAllChatSessions } from "@/lib/api/chat"
 import { getLatestRecommendation } from "@/lib/api/recommendation"
+import { getUserStats } from "@/lib/api/user"
 
 /* ---------------- Quotes Data ---------------- */
 const supportiveQuotes = [
@@ -80,7 +81,7 @@ export default function DashboardPage() {
   const [moodScore, setMoodScore] = useState(0)
   const [todayActivities, setTodayActivities] = useState(0)
   const [todayTherapySessions, setTodayTherapySessions] = useState(0)
-  const [streak, setStreak] = useState(7)
+  const [streak, setStreak] = useState(0) // Initialize to 0 instead of mock 7
   const [isLoadingStats, setIsLoadingStats] = useState(true)
   const [aiInsight, setAiInsight] = useState<string | null>(null)
   const [showCrisisModal, setShowCrisisModal] = useState(false)
@@ -94,15 +95,20 @@ export default function DashboardPage() {
       const dayEnd = endOfDay(today)
 
       // Parallel fetching for speed
-      const [moods, activities, sessions, recommendation] = await Promise.all([
+      const [moods, activities, sessions, recommendation, userStats] = await Promise.all([
         getMoodHistory({ startDate: dayStart.toISOString(), endDate: dayEnd.toISOString() }),
         getActivities(),
         getAllChatSessions(),
-        getLatestRecommendation()
+        getLatestRecommendation("daily_insight"),
+        getUserStats()
       ])
 
       if (recommendation.success && recommendation.data) {
         setAiInsight(recommendation.data.content)
+      }
+
+      if (userStats.success && userStats.data) {
+        setStreak(userStats.data.streak)
       }
 
       // Process Mood & Crisis Detection
@@ -251,6 +257,14 @@ export default function DashboardPage() {
       iconColor: "text-rose-500",
       bgGradient: "hover:bg-rose-500/5",
       onClick: () => router.push("/resources"),
+    },
+    {
+      title: "Wellbeing Reports",
+      description: "View AI reflections",
+      icon: Sparkles,
+      iconColor: "text-amber-500",
+      bgGradient: "hover:bg-amber-500/5",
+      onClick: () => router.push("/reflections"),
     },
   ]
 
