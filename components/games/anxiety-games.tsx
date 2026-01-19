@@ -21,6 +21,11 @@ import { BreathingGame } from "./breathing-games";
 import { ZenGarden } from "./zen-garden";
 import { ForestGame } from "./forest-game";
 import { OceanWaves } from "./ocean-waves";
+import { CloudLetter } from "./cloud-letter";
+import { AuraBlender } from "./aura-blender";
+import { LuminaPath } from "./lumina-path";
+import { RainPainter } from "./rain-painter";
+import { DailySpark } from "./daily-spark";
 
 const games = [
   {
@@ -58,6 +63,51 @@ const games = [
     color: "text-cyan-500",
     bgColor: "bg-cyan-500/10",
     duration: "8 mins",
+  },
+  {
+    id: "cloud-letter",
+    title: "Cloud Letter",
+    description: "Release your worries into drifting clouds",
+    icon: Wind,
+    color: "text-sky-500",
+    bgColor: "bg-sky-500/10",
+    duration: "5 mins",
+  },
+  {
+    id: "aura-blender",
+    title: "Aura Blender",
+    description: "Mix colors to find your perfect balance",
+    icon: Gamepad2, // Placeholder icon, maybe Palette would be better if available
+    color: "text-purple-500",
+    bgColor: "bg-purple-500/10",
+    duration: "5 mins",
+  },
+  {
+    id: "lumina-path",
+    title: "Lumina Path",
+    description: "Find light in the darkness",
+    icon: TreePine,
+    color: "text-yellow-500",
+    bgColor: "bg-yellow-500/10",
+    duration: "10 mins",
+  },
+  {
+    id: "rain-painter",
+    title: "Rain Painter",
+    description: "Clear the fog on a rainy day",
+    icon: Waves,
+    color: "text-slate-500",
+    bgColor: "bg-slate-500/10",
+    duration: "5 mins",
+  },
+  {
+    id: "daily-spark",
+    title: "Daily Spark",
+    description: "Collect sparks of positivity",
+    icon: Music2,
+    color: "text-amber-500",
+    bgColor: "bg-amber-500/10",
+    duration: "5 mins",
   },
 ];
 
@@ -147,6 +197,16 @@ export const AnxietyGames = ({ onGamePlayed }: AnxietyGamesProps) => {
         return <ForestGame />;
       case "waves":
         return <OceanWaves />;
+      case "cloud-letter":
+        return <CloudLetter />;
+      case "aura-blender":
+        return <AuraBlender />;
+      case "lumina-path":
+        return <LuminaPath />;
+      case "rain-painter":
+        return <RainPainter />;
+      case "daily-spark":
+        return <DailySpark />;
       default:
         return null;
     }
