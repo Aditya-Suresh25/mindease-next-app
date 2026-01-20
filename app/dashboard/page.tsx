@@ -176,8 +176,11 @@ export default function DashboardPage() {
       title: "Mood Score",
       value: moodScore ? `${moodScore}%` : "—",
       icon: Brain,
-      color: "text-purple-500",
-      bgClass: "bg-purple-500/10 border-purple-500/20",
+      color: "text-violet-500 dark:text-violet-400",
+      gradientFrom: "from-violet-500/20",
+      gradientTo: "to-purple-500/10",
+      borderColor: "border-violet-500/30 dark:border-violet-400/20",
+      iconBg: "bg-violet-500/15 dark:bg-violet-500/20",
       description: "Daily Average",
       trend: "+2%",
       showProgress: true,
@@ -187,8 +190,11 @@ export default function DashboardPage() {
       title: "Streak",
       value: `${streak} Days`,
       icon: Zap,
-      color: "text-amber-500",
-      bgClass: "bg-amber-500/10 border-amber-500/20",
+      color: "text-amber-500 dark:text-amber-400",
+      gradientFrom: "from-amber-500/20",
+      gradientTo: "to-orange-500/10",
+      borderColor: "border-amber-500/30 dark:border-amber-400/20",
+      iconBg: "bg-amber-500/15 dark:bg-amber-500/20",
       description: "Consistency",
       trend: "+1 day",
     },
@@ -196,8 +202,11 @@ export default function DashboardPage() {
       title: "Sessions",
       value: `${todayTherapySessions}`,
       icon: Heart,
-      color: "text-rose-500",
-      bgClass: "bg-rose-500/10 border-rose-500/20",
+      color: "text-rose-500 dark:text-rose-400",
+      gradientFrom: "from-rose-500/20",
+      gradientTo: "to-pink-500/10",
+      borderColor: "border-rose-500/30 dark:border-rose-400/20",
+      iconBg: "bg-rose-500/15 dark:bg-rose-500/20",
       description: "Therapy Chats",
       trend: todayTherapySessions > 0 ? "Great job" : "Start one",
     },
@@ -205,8 +214,11 @@ export default function DashboardPage() {
       title: "Activities",
       value: `${todayActivities}`,
       icon: Activity,
-      color: "text-blue-500",
-      bgClass: "bg-blue-500/10 border-blue-500/20",
+      color: "text-teal-500 dark:text-teal-400",
+      gradientFrom: "from-teal-500/20",
+      gradientTo: "to-cyan-500/10",
+      borderColor: "border-teal-500/30 dark:border-teal-400/20",
+      iconBg: "bg-teal-500/15 dark:bg-teal-500/20",
       description: "Logged Actions",
       trend: todayActivities > 0 ? "Active" : "Log now",
     },
@@ -217,16 +229,24 @@ export default function DashboardPage() {
       title: "Track Mood",
       description: "Check-in with yourself",
       icon: Heart,
-      iconColor: "text-rose-500",
-      bgGradient: "hover:bg-rose-500/5",
+      iconColor: "text-rose-500 dark:text-rose-400",
+      gradientFrom: "from-rose-500/10",
+      gradientTo: "to-pink-500/5",
+      hoverGradient: "hover:from-rose-500/20 hover:to-pink-500/10",
+      borderColor: "border-rose-200/50 dark:border-rose-500/20",
+      iconBg: "bg-rose-100 dark:bg-rose-500/20",
       onClick: () => setShowMoodModal(true),
     },
     {
       title: "Log Activity",
       description: "Record your progress",
       icon: Activity,
-      iconColor: "text-blue-500",
-      bgGradient: "hover:bg-blue-500/5",
+      iconColor: "text-teal-500 dark:text-teal-400",
+      gradientFrom: "from-teal-500/10",
+      gradientTo: "to-cyan-500/5",
+      hoverGradient: "hover:from-teal-500/20 hover:to-cyan-500/10",
+      borderColor: "border-teal-200/50 dark:border-teal-500/20",
+      iconBg: "bg-teal-100 dark:bg-teal-500/20",
       onClick: () => setShowActivityLogger(true),
     },
     {
@@ -234,7 +254,6 @@ export default function DashboardPage() {
       description: "Chat with MindEase",
       icon: MessageSquare,
       iconColor: "text-white",
-      bgGradient: "bg-gradient-to-br from-primary to-primary/80 text-white hover:shadow-lg hover:shadow-primary/20",
       isPrimary: true,
       onClick: () => router.push("/therapy/new"),
     },
@@ -242,32 +261,41 @@ export default function DashboardPage() {
       title: "Emergency Aid",
       description: "Get immediate help",
       icon: PhoneCall,
-      iconColor: "text-rose-500",
-      bgGradient: "hover:bg-rose-500/5",
+      iconColor: "text-orange-500 dark:text-orange-400",
+      gradientFrom: "from-orange-500/10",
+      gradientTo: "to-amber-500/5",
+      hoverGradient: "hover:from-orange-500/20 hover:to-amber-500/10",
+      borderColor: "border-orange-200/50 dark:border-orange-500/20",
+      iconBg: "bg-orange-100 dark:bg-orange-500/20",
       onClick: () => router.push("/resources"),
     },
     {
       title: "Wellbeing Reports",
       description: "View AI reflections",
       icon: Sparkles,
-      iconColor: "text-amber-500",
-      bgGradient: "hover:bg-amber-500/5",
+      iconColor: "text-violet-500 dark:text-violet-400",
+      gradientFrom: "from-violet-500/10",
+      gradientTo: "to-purple-500/5",
+      hoverGradient: "hover:from-violet-500/20 hover:to-purple-500/10",
+      borderColor: "border-violet-200/50 dark:border-violet-500/20",
+      iconBg: "bg-violet-100 dark:bg-violet-500/20",
       onClick: () => router.push("/reflections"),
     },
   ]
 
   /* ---------------- Render ---------------- */
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5 dark:to-primary/10 relative overflow-hidden">
 
-      {/* Ambient Background */}
+      {/* Ambient Background - Softer, more calming */}
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px]" />
-        <div className="absolute top-[20%] right-[-10%] w-[500px] h-[500px] bg-purple-500/5 rounded-full blur-[100px]" />
-        <div className="absolute bottom-[-10%] left-[20%] w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[120px]" />
+        <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-gradient-to-br from-teal-400/8 to-cyan-400/5 dark:from-teal-500/10 dark:to-cyan-500/5 rounded-full blur-[120px]" />
+        <div className="absolute top-[20%] right-[-10%] w-[500px] h-[500px] bg-gradient-to-bl from-violet-400/8 to-purple-400/5 dark:from-violet-500/10 dark:to-purple-500/5 rounded-full blur-[100px]" />
+        <div className="absolute bottom-[-10%] left-[20%] w-[500px] h-[500px] bg-gradient-to-tr from-rose-400/6 to-pink-400/4 dark:from-rose-500/8 dark:to-pink-500/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[30%] right-[10%] w-[400px] h-[400px] bg-gradient-to-tl from-amber-400/6 to-orange-400/4 dark:from-amber-500/8 dark:to-orange-500/5 rounded-full blur-[100px]" />
       </div>
 
-      <Container className="relative z-10 pt-8 pb-12 space-y-8 md:space-y-12">
+      <Container className="relative z-10 pt-8 pb-12 space-y-10 md:space-y-14">
 
         {/* 1. Hero Section */}
         <motion.div
@@ -275,29 +303,32 @@ export default function DashboardPage() {
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6"
         >
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-muted/50 border border-border/50 backdrop-blur-sm">
-                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground">{format(currentTime, "EEEE, MMMM do")}</span>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-primary/10 to-teal-500/10 dark:from-primary/15 dark:to-teal-500/15 border border-primary/20 dark:border-primary/30 backdrop-blur-sm shadow-sm">
+                <Calendar className="h-3.5 w-3.5 text-primary" />
+                <span className="text-xs font-medium text-foreground/80">{format(currentTime, "EEEE, MMMM do")}</span>
               </div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-muted/50 border border-border/50 backdrop-blur-sm">
-                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground">{format(currentTime, "h:mm a")}</span>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-violet-500/10 to-purple-500/10 dark:from-violet-500/15 dark:to-purple-500/15 border border-violet-500/20 dark:border-violet-500/30 backdrop-blur-sm shadow-sm">
+                <Clock className="h-3.5 w-3.5 text-violet-500 dark:text-violet-400" />
+                <span className="text-xs font-medium text-foreground/80">{format(currentTime, "h:mm a")}</span>
               </div>
             </div>
             <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-foreground">
               Good {parseInt(format(currentTime, "H")) < 12 ? "Morning" : parseInt(format(currentTime, "H")) < 17 ? "Afternoon" : "Evening"}, <br />
-              <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-primary via-teal-500 to-cyan-500 dark:from-primary dark:via-teal-400 dark:to-cyan-400 bg-clip-text text-transparent">
                 {user?.name || "Friend"}
               </span>
             </h1>
+            <p className="text-muted-foreground text-sm md:text-base max-w-md">
+              Take a moment to check in with yourself. Your wellbeing matters. 💚
+            </p>
           </div>
 
           {isLoadingStats && (
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-background/50 border border-border/50 backdrop-blur-md shadow-sm">
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-gradient-to-r from-primary/10 to-teal-500/10 border border-primary/20 backdrop-blur-md shadow-sm">
               <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              <span className="text-xs font-medium text-muted-foreground">Syncing...</span>
+              <span className="text-xs font-medium text-foreground/70">Syncing your data...</span>
             </div>
           )}
         </motion.div>
@@ -320,29 +351,42 @@ export default function DashboardPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <div className="flex items-center justify-between mb-4 px-1">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-muted-foreground" /> Overview
+          <div className="flex items-center justify-between mb-6 px-1">
+            <h2 className="text-lg font-semibold flex items-center gap-2.5 text-foreground">
+              <div className="p-1.5 rounded-lg bg-gradient-to-br from-primary/20 to-teal-500/20 dark:from-primary/30 dark:to-teal-500/30">
+                <TrendingUp className="w-4 h-4 text-primary" />
+              </div>
+              Today's Overview
             </h2>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => router.push("/stories")}>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => router.push("/stories")}
+                className="rounded-xl border-primary/20 hover:border-primary/40 hover:bg-primary/5 text-foreground/80 hover:text-foreground transition-all"
+              >
                 Read Stories
               </Button>
-              <Button variant="outline" size="sm" onClick={() => router.push("/history")}>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => router.push("/history")}
+                className="rounded-xl border-violet-500/20 hover:border-violet-500/40 hover:bg-violet-500/5 text-foreground/80 hover:text-foreground transition-all"
+              >
                 View History
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={fetchDashboardStats}
-                className="h-8 w-8 rounded-full p-0 hover:bg-muted"
+                className="h-9 w-9 rounded-xl p-0 hover:bg-primary/10 transition-all"
               >
-                <RefreshCw className={cn("w-4 h-4 text-muted-foreground", isLoadingStats && "animate-spin")} />
+                <RefreshCw className={cn("w-4 h-4 text-primary", isLoadingStats && "animate-spin")} />
               </Button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6">
             {wellnessStats.map((stat, idx) => (
               <motion.div
                 key={stat.title}
@@ -351,17 +395,36 @@ export default function DashboardPage() {
                 transition={{ delay: 0.1 * idx }}
                 className="group relative"
               >
-                <div className="absolute inset-0 bg-card/40 rounded-[2rem] shadow-sm backdrop-blur-md transition-all group-hover:shadow-md group-hover:bg-card/60" />
-                <div className={cn("absolute inset-0 border rounded-[2rem] opacity-50 transition-colors", stat.bgClass.split(' ')[1])} />
+                {/* Card background with gradient */}
+                <div className={cn(
+                  "absolute inset-0 rounded-3xl transition-all duration-300",
+                  "bg-gradient-to-br",
+                  stat.gradientFrom,
+                  stat.gradientTo,
+                  "dark:opacity-80"
+                )} />
+                <div className={cn(
+                  "absolute inset-0 rounded-3xl backdrop-blur-sm",
+                  "bg-white/60 dark:bg-gray-900/40",
+                  "border",
+                  stat.borderColor,
+                  "shadow-sm group-hover:shadow-md transition-all duration-300"
+                )} />
 
                 <div className="relative p-6 h-full flex flex-col justify-between">
                   <div className="flex justify-between items-start mb-4">
-                    <div className={cn("p-2.5 rounded-2xl", stat.bgClass.split(' ')[0])}>
+                    <div className={cn(
+                      "p-3 rounded-2xl transition-transform duration-300 group-hover:scale-110",
+                      stat.iconBg
+                    )}>
                       <stat.icon className={cn("w-5 h-5", stat.color)} />
                     </div>
                     {stat.trend && (
                       <span className={cn(
-                        "text-[10px] font-bold px-2 py-1 rounded-full border bg-background/50 backdrop-blur-sm",
+                        "text-[10px] font-semibold px-2.5 py-1 rounded-full",
+                        "bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm",
+                        "border border-current/20",
+                        "shadow-sm",
                         stat.color
                       )}>
                         {stat.trend}
@@ -370,16 +433,24 @@ export default function DashboardPage() {
                   </div>
 
                   <div>
-                    <h3 className="text-2xl font-bold tracking-tight mb-1">{stat.value}</h3>
+                    <h3 className="text-2xl font-bold tracking-tight mb-1 text-foreground">{stat.value}</h3>
                     <p className="text-xs font-medium text-muted-foreground">{stat.description}</p>
 
                     {stat.showProgress && (
-                      <div className="mt-4 space-y-1.5">
+                      <div className="mt-4 space-y-2">
                         <div className="flex justify-between text-[10px] text-muted-foreground font-medium">
                           <span>Progress</span>
                           <span>{stat.progressValue}%</span>
                         </div>
-                        <Progress value={stat.progressValue} className="h-1.5 bg-muted/50" />
+                        <div className="h-2 rounded-full bg-white/50 dark:bg-gray-800/50 overflow-hidden">
+                          <div 
+                            className={cn(
+                              "h-full rounded-full transition-all duration-500",
+                              "bg-gradient-to-r from-violet-500 to-purple-500"
+                            )}
+                            style={{ width: `${stat.progressValue}%` }}
+                          />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -395,42 +466,66 @@ export default function DashboardPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-5">
             {quickActions.map((action, idx) => (
               <button
                 key={action.title}
                 onClick={action.onClick}
                 className={cn(
-                  "relative group overflow-hidden rounded-[2rem] p-6 text-left transition-all duration-300",
+                  "relative group overflow-hidden rounded-2xl p-5 text-left transition-all duration-300",
                   action.isPrimary
-                    ? "shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-1"
-                    : "bg-card/40 border border-border/50 hover:bg-card/60 hover:border-primary/20 backdrop-blur-md"
+                    ? "col-span-1 md:col-span-2 lg:col-span-1 bg-gradient-to-br from-primary via-teal-500 to-cyan-500 dark:from-primary dark:via-teal-500 dark:to-cyan-600 text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/35 hover:-translate-y-1 hover:scale-[1.02]"
+                    : cn(
+                        "bg-gradient-to-br backdrop-blur-sm",
+                        action.gradientFrom,
+                        action.gradientTo,
+                        action.hoverGradient,
+                        "border",
+                        action.borderColor,
+                        "hover:shadow-md hover:-translate-y-0.5 transition-all"
+                      )
                 )}
               >
-                <div className={cn("absolute inset-0 transition-colors duration-300", action.bgGradient)} />
+                {/* Subtle inner glow for non-primary buttons */}
+                {!action.isPrimary && (
+                  <div className="absolute inset-0 bg-white/40 dark:bg-white/5 rounded-2xl" />
+                )}
 
                 <div className="relative z-10 flex items-center gap-4">
                   <div className={cn(
-                    "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110",
-                    action.isPrimary ? "bg-white/20" : "bg-muted/50"
+                    "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 group-hover:scale-110",
+                    action.isPrimary 
+                      ? "bg-white/20 shadow-inner" 
+                      : action.iconBg
                   )}>
                     <action.icon className={cn("w-6 h-6", action.iconColor)} />
                   </div>
-                  <div>
-                    <h4 className={cn("font-bold text-lg", action.isPrimary ? "text-white" : "text-foreground")}>
+                  <div className="flex-1 min-w-0">
+                    <h4 className={cn(
+                      "font-bold text-base md:text-lg truncate",
+                      action.isPrimary ? "text-white" : "text-foreground"
+                    )}>
                       {action.title}
                     </h4>
-                    <p className={cn("text-xs", action.isPrimary ? "text-white/80" : "text-muted-foreground")}>
+                    <p className={cn(
+                      "text-xs truncate",
+                      action.isPrimary ? "text-white/80" : "text-muted-foreground"
+                    )}>
                       {action.description}
                     </p>
                   </div>
                   <div className={cn(
-                    "ml-auto transition-transform duration-300 group-hover:translate-x-1",
-                    action.isPrimary ? "text-white" : "text-muted-foreground"
+                    "transition-transform duration-300 group-hover:translate-x-1",
+                    action.isPrimary ? "text-white" : "text-muted-foreground group-hover:text-foreground"
                   )}>
                     <ArrowRight className="w-5 h-5" />
                   </div>
                 </div>
+
+                {/* Shine effect on primary button */}
+                {action.isPrimary && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                )}
               </button>
             ))}
           </div>
@@ -455,14 +550,14 @@ export default function DashboardPage() {
           sessionStorage.setItem("daily_check_skipped", "true");
         }
       }}>
-        <DialogContent className="sm:max-w-md rounded-[2rem] bg-card/95 backdrop-blur-xl border-primary/10">
-          <DialogHeader className="space-y-3">
-            <div className="mx-auto w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center">
-              <Heart className="h-6 w-6 text-rose-500" />
+        <DialogContent className="sm:max-w-md rounded-3xl bg-gradient-to-b from-white to-rose-50/50 dark:from-gray-900 dark:to-rose-950/30 backdrop-blur-xl border-rose-200/50 dark:border-rose-500/20 shadow-xl">
+          <DialogHeader className="space-y-4">
+            <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center shadow-lg shadow-rose-500/30">
+              <Heart className="h-7 w-7 text-white" />
             </div>
-            <DialogTitle className="text-center text-xl">Track Your Mood</DialogTitle>
-            <DialogDescription className="text-center">
-              Taking a moment to reflect helps build emotional awareness.
+            <DialogTitle className="text-center text-xl font-bold text-foreground">How are you feeling?</DialogTitle>
+            <DialogDescription className="text-center text-muted-foreground">
+              Taking a moment to reflect helps build emotional awareness and self-compassion.
             </DialogDescription>
           </DialogHeader>
           <MoodForm
@@ -490,23 +585,30 @@ export default function DashboardPage() {
 
       {/* Crisis Modal */}
       <Dialog open={showCrisisModal} onOpenChange={setShowCrisisModal}>
-        <DialogContent className="sm:max-w-md rounded-[2rem] bg-card/95 backdrop-blur-xl border-rose-500/20">
+        <DialogContent className="sm:max-w-md rounded-3xl bg-gradient-to-b from-white to-rose-50/50 dark:from-gray-900 dark:to-rose-950/30 backdrop-blur-xl border-rose-300/50 dark:border-rose-500/30 shadow-xl">
           <DialogHeader>
-            <div className="mx-auto w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center mb-2">
-              <Heart className="h-6 w-6 text-rose-500" />
+            <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center shadow-lg shadow-rose-500/30 mb-3">
+              <Heart className="h-7 w-7 text-white" />
             </div>
-            <DialogTitle className="text-center text-xl">We noticed you've been feeling low</DialogTitle>
-            <DialogDescription className="text-center pt-2">
-              It takes strength to face these feelings. You don't have to go through this alone.
-              Would you like to explore some support resources?
+            <DialogTitle className="text-center text-xl font-bold text-foreground">We're here for you</DialogTitle>
+            <DialogDescription className="text-center pt-2 text-muted-foreground leading-relaxed">
+              We noticed you've been feeling low lately. It takes courage to acknowledge these feelings. 
+              You don't have to face this alone — support is available.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 pt-4">
-            <Button className="w-full bg-rose-500 hover:bg-rose-600 text-white" onClick={() => router.push("/resources")}>
-              View Resources
+            <Button 
+              className="w-full bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white shadow-lg shadow-rose-500/25 rounded-xl py-5 font-semibold transition-all hover:shadow-xl" 
+              onClick={() => router.push("/resources")}
+            >
+              View Support Resources
             </Button>
-            <Button variant="ghost" className="w-full" onClick={() => setShowCrisisModal(false)}>
-              I'm okay
+            <Button 
+              variant="ghost" 
+              className="w-full text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-xl py-5" 
+              onClick={() => setShowCrisisModal(false)}
+            >
+              I'm okay for now
             </Button>
           </div>
         </DialogContent>

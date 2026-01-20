@@ -102,12 +102,8 @@ export default function TherapyPage() {
   useEffect(() => {
     if (messages.length > 0) {
       const lastMsg = messages[messages.length - 1];
-      if (lastMsg.role === "assistant") {
-        // Check both metadata.suggestedResponses and analysis.suggestedResponses
-        const suggestions = lastMsg.metadata?.suggestedResponses || 
-                           lastMsg.metadata?.analysis?.suggestedResponses || 
-                           [];
-        setSuggestions(suggestions);
+      if (lastMsg.role === "assistant" && lastMsg.metadata?.suggestedResponses) {
+        setSuggestions(lastMsg.metadata.suggestedResponses);
       } else {
         setSuggestions([]);
       }
@@ -154,11 +150,9 @@ export default function TherapyPage() {
       setIsLoading(true);
       try {
         if (!sessionId || sessionId === "new") {
-          const newId = await createChatSession();
-          setSessionId(newId);
-          // Use replaceState to update URL without adding to history stack, so 'Back' works better
-          window.history.replaceState({}, "", `/therapy/${newId}`);
-          setRefreshSidebar(prev => prev + 1); // <--- Add this to refresh sidebar immediately
+          // Don't create session yet - just show empty chat UI
+          // Session will be created when user sends first message
+          setMessages([]);
         } else {
           const history = await getChatHistory(sessionId);
           if (Array.isArray(history)) {
@@ -221,14 +215,32 @@ export default function TherapyPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || isTyping || !sessionId || cooldown > 0) return;
+    if (!message.trim() || isTyping || cooldown > 0) return;
     setUserScrolledUp(false);
     const userMsg: ChatMessage = { role: "user", content: message, timestamp: new Date() };
     setMessages((prev) => [...prev, userMsg]);
     setMessage("");
     setIsTyping(true);
+    
+    // Create session on first message if we're in "new" mode
+    let activeSessionId = sessionId;
+    if (!sessionId || sessionId === "new") {
+      try {
+        const newId = await createChatSession();
+        setSessionId(newId);
+        activeSessionId = newId;
+        window.history.replaceState({}, "", `/therapy/${newId}`);
+        setRefreshSidebar(prev => prev + 1);
+      } catch (err) {
+        console.error("Failed to create session", err);
+        setMessages((prev) => [...prev, { role: "assistant", content: "Failed to start session. Please try again.", timestamp: new Date() }]);
+        setIsTyping(false);
+        return;
+      }
+    }
+    
     try {
-      const response = await sendChatMessage(sessionId, userMsg.content);
+      const response = await sendChatMessage(activeSessionId!, userMsg.content);
       const parsed = typeof response === "string" ? JSON.parse(response) : response;
 
       // Handle Cooldown
@@ -236,19 +248,16 @@ export default function TherapyPage() {
         setCooldown(parsed.cooldown);
       }
 
-      // Extract analysis - it can be at root level or in metadata
-      const analysis = parsed.analysis || parsed.metadata?.analysis;
-
       setMessages((prev) => [...prev, {
         role: "assistant",
         content: parsed.response || parsed.message || "I'm listening.",
         timestamp: new Date(),
         metadata: {
-          analysis: analysis,
+          analysis: parsed.analysis,
           technique: parsed.metadata?.technique || "general_support",
           goal: parsed.metadata?.goal || "support",
           progress: parsed.metadata?.progress || [],
-          suggestedResponses: parsed.metadata?.suggestedResponses || analysis?.suggestedResponses || [],
+          ...parsed.metadata
         }
       }]);
       // FORCE SIDEBAR REFRESH: This ensures the 'New Session' name updates 
@@ -259,44 +268,23 @@ export default function TherapyPage() {
     } finally { setIsTyping(false); }
   };
 
-  // Redesigned Sidebar Content
-  const SidebarContent = () => (
-    <div className="flex flex-col h-full">
-      <div className="p-6 pb-4 flex items-center justify-between">
-        <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">Chat History</h2>
-        <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-primary/10 hover:text-primary rounded-full transition-colors" onClick={async () => {
-          const id = await createChatSession(); setSessionId(id); setMessages([]); window.history.pushState({}, "", `/therapy/${id}`);
-        }}>
-          <PlusCircle size={18} />
-        </Button>
-      </div>
-      <ScrollArea className="flex-1 px-3">
-        <div className="space-y-1 pb-4">
-          {sessions.map((s) => (
-            <div
-              key={s.sessionId}
-              onClick={() => setSessionId(s.sessionId)}
-              className={cn(
-                "p-3 rounded-xl cursor-pointer transition-all duration-200 border group backdrop-blur-sm",
-                s.sessionId === sessionId
-                  ? "bg-primary/10 border-primary/20 shadow-sm"
-                  : "hover:bg-white/5 border-transparent hover:border-white/10"
-              )}
-            >
-              <div className="flex justify-between items-start gap-2">
-                <p className={cn("text-xs md:text-sm font-medium truncate flex-1 transition-colors", s.sessionId === sessionId ? "text-primary" : "text-foreground/80 group-hover:text-foreground")}>
-                  {s.messages[0]?.content || "New Session"}
-                </p>
-              </div>
-              <p className="text-[10px] text-muted-foreground/50 mt-1.5 font-medium">
-                {formatDistanceToNow(new Date(s.updatedAt), { addSuffix: true })}
-              </p>
-            </div>
-          ))}
-        </div>
-      </ScrollArea>
-    </div>
-  );
+  // Delete session handler
+  const handleDeleteSession = async (deleteSessionId: string) => {
+    try {
+      await deleteChatSessionApi(deleteSessionId);
+      // Remove from local state
+      setSessions(prev => prev.filter(s => s.sessionId !== deleteSessionId));
+      // If we deleted the current session, navigate to new chat
+      if (deleteSessionId === sessionId) {
+        setSessionId("new");
+        setMessages([]);
+        window.history.replaceState({}, "", `/therapy/new`);
+      }
+    } catch (err) {
+      console.error("Failed to delete session", err);
+    }
+  };
+
   if (!mounted || isLoading) return null;
 
   return (
@@ -307,12 +295,12 @@ export default function TherapyPage() {
           sessions={sessions}
           setSessionId={setSessionId}
           currentSessionId={sessionId}
-          onCreateSession={async () => {
-            const id = await createChatSession();
-            setSessionId(id);
+          onCreateSession={() => {
+            setSessionId("new");
             setMessages([]);
-            window.history.pushState({}, "", `/therapy/${id}`);
+            window.history.pushState({}, "", `/therapy/new`);
           }}
+          onDeleteSession={handleDeleteSession}
         />
       </aside>
 
@@ -338,12 +326,12 @@ export default function TherapyPage() {
                     sessions={sessions}
                     setSessionId={setSessionId}
                     currentSessionId={sessionId}
-                    onCreateSession={async () => {
-                      const id = await createChatSession();
-                      setSessionId(id);
+                    onCreateSession={() => {
+                      setSessionId("new");
                       setMessages([]);
-                      window.history.pushState({}, "", `/therapy/${id}`);
+                      window.history.pushState({}, "", `/therapy/new`);
                     }}
+                    onDeleteSession={handleDeleteSession}
                   />
                 </div>
               </SheetContent>
@@ -619,40 +607,159 @@ export default function TherapyPage() {
 }
 
 // Helper to redesign Sidebar
-function SidebarContentComponent({ sessions, setSessionId, currentSessionId, onCreateSession }: any) {
+function SidebarContentComponent({ 
+  sessions, 
+  setSessionId, 
+  currentSessionId, 
+  onCreateSession,
+  onDeleteSession 
+}: {
+  sessions: any[];
+  setSessionId: (id: string) => void;
+  currentSessionId: string | null;
+  onCreateSession: () => void;
+  onDeleteSession: (sessionId: string) => void;
+}) {
+  const [hoveredSession, setHoveredSession] = useState<string | null>(null);
+
   return (
     <div className="flex flex-col h-full">
-      <div className="p-6 pb-4 flex items-center justify-between">
-        <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">Chat History</h2>
-        <Button size="icon" variant="ghost" className="h-8 w-8 hover:bg-primary/10 hover:text-primary rounded-full transition-colors" onClick={onCreateSession}>
-          <PlusCircle size={18} />
+      {/* Header */}
+      <div className="p-5 pb-3 border-b border-border/10">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+              <MessageSquare className="w-4 h-4 text-primary" />
+            </div>
+            <span className="font-semibold text-sm">Conversations</span>
+          </div>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted/50 text-muted-foreground font-medium">
+            {sessions.length}
+          </span>
+        </div>
+        <Button 
+          variant="outline" 
+          className="w-full h-10 rounded-xl border-dashed border-primary/30 hover:border-primary/50 hover:bg-primary/5 text-primary font-medium gap-2 transition-all" 
+          onClick={onCreateSession}
+        >
+          <PlusCircle size={16} />
+          New Chat
         </Button>
       </div>
-      <ScrollArea className="flex-1 px-3">
-        <div className="space-y-1 pb-4">
-          {sessions.map((s: any) => (
-            <div
-              key={s.sessionId}
-              onClick={() => setSessionId(s.sessionId)}
-              className={cn(
-                "p-3 rounded-xl cursor-pointer transition-all duration-200 border group backdrop-blur-sm",
-                s.sessionId === currentSessionId
-                  ? "bg-primary/10 border-primary/20 shadow-sm"
-                  : "hover:bg-white/5 border-transparent hover:border-white/10"
-              )}
-            >
-              <div className="flex justify-between items-start gap-2">
-                <p className={cn("text-sm font-medium truncate flex-1 transition-colors", s.sessionId === currentSessionId ? "text-primary" : "text-foreground/80 group-hover:text-foreground")}>
-                  {s.messages[0]?.content || "New Session"}
-                </p>
+
+      {/* Sessions List */}
+      <ScrollArea className="flex-1">
+        <div className="p-3 space-y-1.5">
+          {sessions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-muted/30 flex items-center justify-center mb-3">
+                <MessageSquare className="w-5 h-5 text-muted-foreground/50" />
               </div>
-              <p className="text-[10px] text-muted-foreground/50 mt-1.5 font-medium">
-                {formatDistanceToNow(new Date(s.updatedAt), { addSuffix: true })}
-              </p>
+              <p className="text-sm text-muted-foreground/70 font-medium">No conversations yet</p>
+              <p className="text-xs text-muted-foreground/50 mt-1">Start a new chat to begin</p>
             </div>
-          ))}
+          ) : (
+            sessions.map((s: any) => {
+              const isActive = s.sessionId === currentSessionId;
+              const isHovered = hoveredSession === s.sessionId;
+              const messagePreview = s.messages[0]?.content || "New conversation";
+              const truncatedPreview = messagePreview.length > 35 
+                ? messagePreview.substring(0, 35) + "..." 
+                : messagePreview;
+
+              return (
+                <div
+                  key={s.sessionId}
+                  onMouseEnter={() => setHoveredSession(s.sessionId)}
+                  onMouseLeave={() => setHoveredSession(null)}
+                  className={cn(
+                    "relative group rounded-xl transition-all duration-200 overflow-hidden",
+                    isActive
+                      ? "bg-primary/10 shadow-sm"
+                      : "hover:bg-muted/50"
+                  )}
+                >
+                  <div
+                    onClick={() => {
+                      setSessionId(s.sessionId);
+                      window.history.pushState({}, "", `/therapy/${s.sessionId}`);
+                    }}
+                    className="p-3 cursor-pointer"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={cn(
+                        "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+                        isActive ? "bg-primary/20" : "bg-muted/50"
+                      )}>
+                        <Bot className={cn("w-4 h-4", isActive ? "text-primary" : "text-muted-foreground")} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={cn(
+                          "text-sm font-medium truncate transition-colors",
+                          isActive ? "text-primary" : "text-foreground/80"
+                        )}>
+                          {truncatedPreview}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] text-muted-foreground/60">
+                            {formatDistanceToNow(new Date(s.updatedAt), { addSuffix: true })}
+                          </span>
+                          {s.messages.length > 0 && (
+                            <>
+                              <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                              <span className="text-[10px] text-muted-foreground/60">
+                                {s.messages.length} msg{s.messages.length !== 1 ? 's' : ''}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Delete Button - appears on hover */}
+                  <AnimatePresence>
+                    {(isHovered || isActive) && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute top-2 right-2"
+                      >
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 rounded-lg bg-background/80 hover:bg-destructive/10 hover:text-destructive backdrop-blur-sm shadow-sm border border-border/50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteSession(s.sessionId);
+                          }}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Active indicator */}
+                  {isActive && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-r-full" />
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
       </ScrollArea>
+
+      {/* Footer */}
+      <div className="p-4 border-t border-border/10">
+        <div className="flex items-center gap-2 text-[10px] text-muted-foreground/50 justify-center">
+          <Shield className="w-3 h-3" />
+          <span>Private & Secure</span>
+        </div>
+      </div>
     </div>
   )
 }

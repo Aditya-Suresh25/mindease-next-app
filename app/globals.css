@@ -53,80 +53,109 @@
 }
 
 :root {
-  --radius: 0.75rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #9bc9b2;
-  --primary-foreground: #2a3d29;
-  --secondary: #f3f2fa;
-  --secondary-foreground: #726b8a;
-  --muted: #f3f6fa;
-  --muted-foreground: #6e7c8a;
-  --accent: #f4f8f6;
-  --accent-foreground: #2e3537;
-  --destructive: #f25f5c;
+  --radius: 0.875rem;
+  
+  /* Light theme - Warm, calming palette */
+  --background: #fafcfb;
+  --foreground: #1a2e25;
+  
+  --card: #ffffff;
+  --card-foreground: #1a2e25;
+  
+  --popover: #ffffff;
+  --popover-foreground: #1a2e25;
+  
+  /* Primary - Soft sage/mint green for calm */
+  --primary: #7eb89e;
+  --primary-foreground: #ffffff;
+  
+  /* Secondary - Soft lavender */
+  --secondary: #f0eef8;
+  --secondary-foreground: #5c5678;
+  
+  /* Muted - Gentle gray-blue */
+  --muted: #f4f7f6;
+  --muted-foreground: #64748b;
+  
+  /* Accent - Soft teal */
+  --accent: #e8f4f1;
+  --accent-foreground: #1a2e25;
+  
+  --destructive: #e57373;
 
-  --border: #e6e9eb;
-  --input: #e6e9eb;
-  --ring: #9bc9b2;
+  /* Borders - Softer, warmer */
+  --border: #e2e8e5;
+  --input: #e2e8e5;
+  --ring: #7eb89e;
 
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Charts - Harmonious wellness colors */
+  --chart-1: #7eb89e;
+  --chart-2: #9b8bb8;
+  --chart-3: #f4a574;
+  --chart-4: #6bb5c4;
+  --chart-5: #e8a5b3;
+  
+  /* Sidebar */
+  --sidebar: #fafcfb;
+  --sidebar-foreground: #1a2e25;
+  --sidebar-primary: #7eb89e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e8f4f1;
+  --sidebar-accent-foreground: #1a2e25;
+  --sidebar-border: #e2e8e5;
+  --sidebar-ring: #7eb89e;
 }
 
 .dark {
-  /* --- 1. BASE COLORS (Softer Contrast) --- */
-  --background: #10161a; /* Elevated deep charcoal/blue for less strain */
-  --foreground: #e0e6ed; /* Softer, slightly warmer white text (was #e8ecf2) */
-
-  --card: #141b1f; /* Slightly lighter than background for visual hierarchy */
-  --card-foreground: #e0e6ed;
-
-  --popover: #141b1f;
-  --popover-foreground: #e0e6ed;
-
-  /* --- 2. ACCENT COLORS (Maintain Brand Identity but reduce luminance) --- */
-  --primary: #85d0b9; /* Slightly darker mint green (was #b6e2d3) */
-  --primary-foreground: #10161a; /* Dark text for use ON the primary color */
-
-  --secondary: #2c3845; /* Darker, cooler secondary (was #23203a) */
-  --secondary-foreground: #e0eeef; /* Light text for use ON the secondary color */
-
-  --muted: #1e293b; /* More defined muted background (darker blue-gray) */
-  --muted-foreground: #a0a7af; /* Soft gray for secondary/hint text */
-
-  --accent: #2c3845; /* Matches secondary for button hovers */
-  --accent-foreground: #e0e6ed;
+  /* --- Dark theme - Cozy, not gloomy --- */
+  --background: #0f1419;
+  --foreground: #e4e9ed;
   
-  --destructive: #c04c54; /* Softer red for errors (was oklch-based) */
-  --destructive-foreground: #e0e6ed;
+  --card: #161d23;
+  --card-foreground: #e4e9ed;
   
-  /* --- 3. BORDERS AND INTERACTION --- */
-  --border: #2c3845; /* Clearer border definition */
-  --input: #2c3845;
-  --ring: #4e5e78; /* Less intense ring focus */
+  --popover: #161d23;
+  --popover-foreground: #e4e9ed;
+  
+  /* Primary - Brighter mint for dark mode visibility */
+  --primary: #8ed4b8;
+  --primary-foreground: #0f1419;
+  
+  /* Secondary - Deeper lavender */
+  --secondary: #2a2640;
+  --secondary-foreground: #d4d0e8;
+  
+  /* Muted - Balanced blue-gray */
+  --muted: #1e2830;
+  --muted-foreground: #94a3b8;
+  
+  /* Accent - Deep teal */
+  --accent: #1e3330;
+  --accent-foreground: #e4e9ed;
+  
+  --destructive: #cf6679;
+  
+  /* Borders - Subtle but visible */
+  --border: #2a3540;
+  --input: #2a3540;
+  --ring: #5a9a80;
 
-  /* --- 4. CHARTS/GRAPHS (Using standard hex for reliability) --- */
-  --chart-1: #3b82f6; /* Blue */
-  --chart-2: #8b5cf6; /* Violet */
-  --chart-3: #f472b6; /* Pink */
-  --chart-4: #10b981; /* Emerald */
-  --chart-5: #f59e0b; /* Amber */
+  /* Charts - Vibrant but not harsh */
+  --chart-1: #8ed4b8;
+  --chart-2: #b39ddb;
+  --chart-3: #ffab91;
+  --chart-4: #80cbc4;
+  --chart-5: #f48fb1;
+  
+  /* Sidebar - Cozy dark */
+  --sidebar: #161d23;
+  --sidebar-foreground: #e4e9ed;
+  --sidebar-primary: #8ed4b8;
+  --sidebar-primary-foreground: #0f1419;
+  --sidebar-accent: #1e3330;
+  --sidebar-accent-foreground: #e4e9ed;
+  --sidebar-border: #2a3540;
+  --sidebar-ring: #5a9a80;
 }
 
 @layer base {
@@ -138,7 +167,7 @@
   }
 }
 
-  html {
+html {
   scroll-behavior: smooth;
 }
 
