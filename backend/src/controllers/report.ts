@@ -5,7 +5,7 @@ import { Types } from "mongoose";
 
 export const generateReport = async (req: any, res: Response) => {
     try {
-        const userId = req.user.id;
+        const userId = req.user._id;
         const { period, isMock } = req.body; // "7_days", "14_days", etc.
 
         let days = 7;
@@ -38,7 +38,7 @@ export const generateReport = async (req: any, res: Response) => {
 
 export const getReports = async (req: any, res: Response) => {
     try {
-        const userId = req.user.id;
+        const userId = req.user._id;
         const reports = await ReflectionReport.find({ userId })
             .sort({ createdAt: -1 })
             .limit(20); // Limit to last 20 reports
@@ -53,7 +53,7 @@ export const getReports = async (req: any, res: Response) => {
 export const getReportById = async (req: any, res: Response) => {
     try {
         const { id } = req.params;
-        const userId = req.user.id;
+        const userId = req.user._id;
 
         const report = await ReflectionReport.findOne({ _id: id, userId });
         if (!report) {

@@ -34,17 +34,7 @@ export const createChatSession = async (req: any, res: any) => {
 
     const userId = req.user._id;
 
-    // If an active session already exists for this user, return it instead of creating a duplicate
-    const existingSession = await ChatSession.findOne({ userId, status: "active" });
-    if (existingSession) {
-      return res.status(200).json({
-        message: "Existing active session returned",
-        sessionId: existingSession.sessionId,
-        existing: true,
-      });
-    }
-
-    // Generate a unique sessionId
+    // Generate a unique sessionId for the new session
     const sessionId = uuidv4();
 
     const session = new ChatSession({
@@ -61,7 +51,6 @@ export const createChatSession = async (req: any, res: any) => {
     res.status(201).json({
       message: "Chat session created successfully",
       sessionId: session.sessionId,
-      existing: false,
     });
   } catch (error) {
     logger.error("Error creating chat session:", error);
@@ -296,6 +285,7 @@ export const sendMessage = async (req: Request, res: Response) => {
           emotionalState: analysis.emotionalState,
           riskLevel: analysis.riskLevel,
         },
+        suggestedResponses: analysis.suggestedResponses || [],
       },
       cooldown: 3, // Standard 3s cooldown after successful message
     });

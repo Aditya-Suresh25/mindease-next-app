@@ -76,6 +76,15 @@ export default function TherapyPage() {
   // Suggestions State
   const [suggestions, setSuggestions] = useState<string[]>([]);
 
+  // Initial welcome suggestions for new chats
+  const welcomeSuggestions = [
+    "I'm feeling anxious today",
+    "I need someone to talk to",
+    "Help me with stress management",
+    "I want to feel more positive",
+    "I'm having trouble sleeping",
+  ];
+
   // Cooldown State
   const [cooldown, setCooldown] = useState(0);
 
@@ -93,8 +102,12 @@ export default function TherapyPage() {
   useEffect(() => {
     if (messages.length > 0) {
       const lastMsg = messages[messages.length - 1];
-      if (lastMsg.role === "assistant" && lastMsg.metadata?.suggestedResponses) {
-        setSuggestions(lastMsg.metadata.suggestedResponses);
+      if (lastMsg.role === "assistant") {
+        // Check both metadata.suggestedResponses and analysis.suggestedResponses
+        const suggestions = lastMsg.metadata?.suggestedResponses || 
+                           lastMsg.metadata?.analysis?.suggestedResponses || 
+                           [];
+        setSuggestions(suggestions);
       } else {
         setSuggestions([]);
       }
@@ -223,16 +236,19 @@ export default function TherapyPage() {
         setCooldown(parsed.cooldown);
       }
 
+      // Extract analysis - it can be at root level or in metadata
+      const analysis = parsed.analysis || parsed.metadata?.analysis;
+
       setMessages((prev) => [...prev, {
         role: "assistant",
         content: parsed.response || parsed.message || "I'm listening.",
         timestamp: new Date(),
         metadata: {
-          analysis: parsed.analysis,
+          analysis: analysis,
           technique: parsed.metadata?.technique || "general_support",
           goal: parsed.metadata?.goal || "support",
           progress: parsed.metadata?.progress || [],
-          ...parsed.metadata
+          suggestedResponses: parsed.metadata?.suggestedResponses || analysis?.suggestedResponses || [],
         }
       }]);
       // FORCE SIDEBAR REFRESH: This ensures the 'New Session' name updates 
@@ -515,12 +531,32 @@ export default function TherapyPage() {
 
 
 
-        // ...
-
         {/* Input Footer - Floating Glass Bar */}
         <footer className="absolute bottom-0 left-0 right-0 p-4 md:p-6 bg-gradient-to-t from-background via-background/95 to-transparent z-20">
           <div className="max-w-4xl mx-auto relative">
-            {/* Suggestions Pills */}
+            {/* Welcome Suggestions for New Chats */}
+            <AnimatePresence>
+              {messages.length === 0 && !isTyping && cooldown === 0 && (
+                <div className="flex flex-wrap gap-2 mb-4 justify-center">
+                  {welcomeSuggestions.map((suggestion, i) => (
+                    <motion.button
+                      key={i}
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ delay: i * 0.08 }}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="whitespace-nowrap px-4 py-2.5 bg-gradient-to-r from-primary/10 to-purple-500/10 hover:from-primary/20 hover:to-purple-500/20 text-primary text-xs md:text-sm font-medium rounded-full border border-primary/20 backdrop-blur-md transition-all shadow-sm hover:shadow-md hover:scale-105"
+                    >
+                      <Sparkles className="w-3 h-3 inline-block mr-1.5 opacity-70" />
+                      {suggestion}
+                    </motion.button>
+                  ))}
+                </div>
+              )}
+            </AnimatePresence>
+
+            {/* AI Suggestions Pills (after conversation) */}
             <AnimatePresence>
               {suggestions.length > 0 && !isTyping && cooldown === 0 && (
                 <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-none justify-center">

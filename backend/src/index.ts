@@ -13,6 +13,7 @@ import activityRouter from "./routes/activity";
 import recommendationRouter from "./routes/recommendation";
 import userRouter from "./routes/user";
 import reportRouter from "./routes/report";
+import quoteRouter from "./routes/quote";
 import { connectDB } from "./utils/db";
 import { inngest } from "./inngest/index";
 import { functions as inngestFunctions } from "./inngest/functions";
@@ -48,6 +49,7 @@ app.use("/api/activity", activityRouter);
 app.use("/api/recommendations", recommendationRouter);
 app.use("/api/user", userRouter);
 app.use("/api/reports", reportRouter);
+app.use("/api/quote", quoteRouter);
 
 // Error handling middleware
 app.use(errorHandler);

@@ -32,7 +32,6 @@ import {
   Loader2,
   MessageSquare,
   Sparkles,
-  Quote as QuoteIcon,
   Zap,
   TrendingUp,
   RefreshCw,
@@ -44,6 +43,7 @@ import { AnxietyGames } from "@/components/games/anxiety-games"
 import { MoodForm } from "@/components/mood/mood-form"
 import { ActivityLogger } from "@/components/activities/activity-logger"
 import { AllActivities } from "@/components/activities/all-activities"
+import { DailyQuote } from "@/components/quote/daily-quote"
 
 // API
 import { getActivities } from "@/lib/api/activity"
@@ -51,17 +51,6 @@ import { getMoodHistory } from "@/lib/api/mood"
 import { getAllChatSessions } from "@/lib/api/chat"
 import { getLatestRecommendation } from "@/lib/api/recommendation"
 import { getUserStats } from "@/lib/api/user"
-
-/* ---------------- Quotes Data ---------------- */
-const supportiveQuotes = [
-  { text: "You are stronger than you think, braver than you believe, and more capable than you imagine.", author: "A.A. Milne" },
-  { text: "Healing is not linear. Some days will be harder than others, and that's okay.", author: "Unknown" },
-  { text: "Your mental health is a priority. Your happiness is essential. Your self-care is a necessity.", author: "Unknown" },
-  { text: "It's okay to not be okay. What matters is that you're taking steps to feel better.", author: "Unknown" },
-  { text: "Small steps in the right direction can turn out to be the biggest steps of your life.", author: "Unknown" },
-  { text: "Be patient with yourself. Growth takes time, and healing takes courage.", author: "Unknown" },
-  { text: "Every day may not be good, but there is something good in every day.", author: "Alice Morse Earle" },
-]
 
 export default function DashboardPage() {
 
@@ -73,7 +62,6 @@ export default function DashboardPage() {
   const { user } = useSession()
 
   const [currentTime, setCurrentTime] = useState(new Date())
-  const [dailyQuote, setDailyQuote] = useState(supportiveQuotes[0])
 
   const [showMoodModal, setShowMoodModal] = useState(false)
   const [showActivityLogger, setShowActivityLogger] = useState(false)
@@ -178,8 +166,6 @@ export default function DashboardPage() {
   /* ---------------- Effects ---------------- */
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
-    const day = new Date().getDate()
-    setDailyQuote(supportiveQuotes[day % supportiveQuotes.length])
     fetchDashboardStats()
     return () => clearInterval(timer)
   }, [fetchDashboardStats])
@@ -316,30 +302,16 @@ export default function DashboardPage() {
           )}
         </motion.div>
 
-        {/* 2. Daily Insight (Quote) */}
+
         <motion.div
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
-          className="relative group rounded-[2.5rem] overflow-hidden"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-purple-500/5 to-transparent opacity-50 group-hover:opacity-70 transition-opacity" />
-          <div className="relative p-8 md:p-10 border border-primary/10 backdrop-blur-sm bg-card/30">
-            <div className="absolute top-6 right-8 opacity-20">
-              <QuoteIcon className="w-16 h-16 text-primary rotate-12" />
-            </div>
-            <div className="max-w-2xl relative z-10">
-              <h3 className="text-sm font-semibold uppercase tracking-widest text-primary mb-3 flex items-center gap-2">
-                <Sparkles className="w-4 h-4" /> {aiInsight ? "AI Insight" : "Daily Insight"}
-              </h3>
-              <p className="text-xl md:text-2xl font-medium leading-relaxed italic text-foreground/90 mb-4">
-                "{aiInsight || dailyQuote.text}"
-              </p>
-              <p className="text-sm font-medium text-muted-foreground border-l-2 border-primary/30 pl-3">
-                {aiInsight ? "MindEase AI" : dailyQuote.author}
-              </p>
-            </div>
-          </div>
+          <DailyQuote 
+            isAuthenticated={!!user} 
+            variant="card"
+          />
         </motion.div>
 
         {/* 3. Stats Grid */}
