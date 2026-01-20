@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select"
 import { Button } from "../ui/button"
 import { logActivity as apiLogActivity, updateActivity } from "@/lib/api/activity"
+import { toast } from "sonner"
 
 const activityTypes = [
   { id: "meditation", name: "Meditation" },
@@ -72,8 +73,14 @@ export function ActivityLogger({
 
       if (initialData) {
         await updateActivity(initialData._id, payload)
+        toast.success("Activity updated", {
+          description: "Your wellness activity has been saved ✨",
+        })
       } else {
         await apiLogActivity(payload)
+        toast.success("Activity logged", {
+          description: "Keep up the great work on your wellness journey 🌱",
+        })
       }
 
       // Reset fields if creating new, but maybe not if editing?
@@ -88,7 +95,9 @@ export function ActivityLogger({
       onOpenChange(false)    // close modal
     } catch (err) {
       console.error("Failed to save activity:", err)
-      alert("Failed to save activity. Please try again.")
+      toast.error("Failed to save activity", {
+        description: "Please try again in a moment",
+      })
     } finally {
       setIsLoading(false)
     }

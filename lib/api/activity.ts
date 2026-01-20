@@ -5,6 +5,71 @@ interface ActivityEntry {
   duration?: number;
 }
 
+interface ActivityBlueprint {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  suitableMoodCategories: string[];
+  durationMinutes: number;
+  energyLevel: string;
+  interactionType: string;
+}
+
+interface ActivitySuggestionsResponse {
+  success: boolean;
+  data: {
+    recommendations: ActivityBlueprint[];
+    reason: string;
+    basedOnMood: {
+      score: number;
+      intensity: number;
+      timestamp: string;
+    } | null;
+  };
+}
+
+export async function getActivitySuggestions(): Promise<ActivitySuggestionsResponse> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  if (!token) throw new Error("Not authenticated");
+
+  const { API_BASE, getAuthHeaders } = await import("./base");
+
+  const response = await fetch(`${API_BASE}/api/activity/suggestions`, {
+    method: "GET",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Failed to fetch activity suggestions");
+  }
+
+  return response.json();
+}
+
+export async function getAllActivityBlueprints(): Promise<{
+  success: boolean;
+  data: ActivityBlueprint[];
+}> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  if (!token) throw new Error("Not authenticated");
+
+  const { API_BASE, getAuthHeaders } = await import("./base");
+
+  const response = await fetch(`${API_BASE}/api/activity/blueprints`, {
+    method: "GET",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Failed to fetch activity blueprints");
+  }
+
+  return response.json();
+}
+
 
 export async function logActivity(
   data: ActivityEntry

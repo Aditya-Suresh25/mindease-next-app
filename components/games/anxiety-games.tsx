@@ -35,9 +35,10 @@ import { useEffect } from "react";
 
 interface AnxietyGamesProps {
   onGamePlayed?: (gameName: string, description: string) => Promise<void>;
+  onViewAllActivities?: () => void;
 }
 
-export const AnxietyGames = ({ onGamePlayed }: AnxietyGamesProps) => {
+export const AnxietyGames = ({ onGamePlayed, onViewAllActivities }: AnxietyGamesProps) => {
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
   const [showGame, setShowGame] = useState(false);
   const [dynamicGames, setDynamicGames] = useState(ACTIVITIES); // Default to all or a subset?
@@ -138,13 +139,27 @@ export const AnxietyGames = ({ onGamePlayed }: AnxietyGamesProps) => {
     <>
       <Card className="border-primary/10 overflow-hidden">
         <CardHeader className="pb-4">
-          <CardTitle className="text-xl font-semibold flex items-center gap-2">
-            <Gamepad2 className="h-5 w-5 text-primary" />
-            Anxiety Relief Activities
-          </CardTitle>
-          <CardDescription>
-            Interactive exercises to help reduce stress and anxiety
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-xl font-semibold flex items-center gap-2">
+                <Gamepad2 className="h-5 w-5 text-primary" />
+                Anxiety Relief Activities
+              </CardTitle>
+              <CardDescription>
+                Interactive exercises to help reduce stress and anxiety
+              </CardDescription>
+            </div>
+            {onViewAllActivities && (
+              <Button 
+                onClick={onViewAllActivities}
+                variant="outline"
+                className="shrink-0 border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary hover:text-primary font-medium gap-2"
+              >
+                <Gamepad2 className="h-4 w-4" />
+                View All Activities
+              </Button>
+            )}
+          </div>
         </CardHeader>
 
         {/* AI Insight Banner */}

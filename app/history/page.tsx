@@ -86,7 +86,9 @@ export default function HistoryPage() {
 
         } catch (error) {
             console.error(error);
-            toast.error("Failed to fetch history");
+            toast.error("Couldn't load history", {
+                description: "Please refresh to try again. 🌿",
+            });
         } finally {
             setIsLoading(false);
         }
@@ -104,10 +106,14 @@ export default function HistoryPage() {
         if (!confirm("Are you sure you want to delete this entry?")) return;
         try {
             await deleteMood(id);
-            toast.success("Mood entry deleted");
+            toast.success("Mood entry removed", {
+                description: "Your history has been updated. 🍃",
+            });
             fetchData();
         } catch (error) {
-            toast.error("Failed to delete mood");
+            toast.error("Couldn't remove entry", {
+                description: "Please try again in a moment. 🌿",
+            });
         }
     };
 
@@ -115,10 +121,14 @@ export default function HistoryPage() {
         if (!confirm("Are you sure you want to delete this activity?")) return;
         try {
             await deleteActivity(id);
-            toast.success("Activity log deleted");
+            toast.success("Activity log removed", {
+                description: "Your history has been updated. 🍃",
+            });
             fetchData();
         } catch (error) {
-            toast.error("Failed to delete activity");
+            toast.error("Couldn't remove activity", {
+                description: "Please try again in a moment. 🌿",
+            });
         }
     };
 

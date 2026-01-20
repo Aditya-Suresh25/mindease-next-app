@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ReflectionReport } from "../models/ReflectionReport";
 import { logger } from "../utils/logger";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const genAI = new GoogleGenerativeAI('AIzaSyCrXAHqKCvwW0OL5OqG_3OL26ZFlDhZnmk');
 
 export const generateWellbeingReport = inngest.createFunction(
     { id: "generate-wellbeing-report" },

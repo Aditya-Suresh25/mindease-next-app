@@ -5,11 +5,19 @@ import {
   getActivities,
   updateActivity,
   deleteActivity,
+  getSuggestions,
+  getAllActivityBlueprints,
 } from "../controllers/activityController";
 
 const router = express.Router();
 
 router.use(auth);
+
+// Get all available activity blueprints
+router.get("/blueprints", getAllActivityBlueprints);
+
+// Get activity suggestions based on latest mood
+router.get("/suggestions", getSuggestions);
 
 // Get all activities
 router.get("/", getActivities);

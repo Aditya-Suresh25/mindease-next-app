@@ -93,13 +93,17 @@ export default function SettingsPage() {
             });
 
             if (res.ok) {
-                toast.success("Settings saved", { description: "Your profile has been updated successfully." });
+                toast.success("Settings saved", {
+                    description: "Your preferences have been updated. 🌸",
+                });
                 // Update local storage user if needed, or just rely on state
             } else {
                 throw new Error("Failed to update");
             }
         } catch (error) {
-            toast.error("Error", { description: "Failed to save settings. Please try again." });
+            toast.error("Couldn't save settings", {
+                description: "Please try again in a moment. 🌿",
+            });
         } finally {
             setIsSaving(false);
         }

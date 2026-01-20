@@ -417,25 +417,56 @@ export default function TherapyPage() {
 
                         {/* Crisis / SOS Alert */}
                         {msg.metadata?.analysis?.isCrisis && (
-                          <div className="w-full max-w-sm mt-4 mb-2 overflow-hidden rounded-xl border border-red-500/30 bg-red-500/10 dark:bg-red-950/30">
-                            <div className="p-4 flex gap-4">
-                              <div className="h-10 w-10 shrink-0 rounded-full bg-red-500/10 flex items-center justify-center text-red-500">
+                          <div className="w-full max-w-md mt-4 mb-2 overflow-hidden rounded-xl border-2 border-red-500 bg-red-50 dark:bg-red-950/50 shadow-lg shadow-red-500/20">
+                            <div className="bg-red-500 px-4 py-2">
+                              <h4 className="font-bold text-white flex items-center gap-2">
                                 <Shield className="h-5 w-5" />
+                                Immediate Help Available
+                              </h4>
+                            </div>
+                            <div className="p-4 space-y-3">
+                              <p className="text-sm text-red-700 dark:text-red-300 leading-relaxed">
+                                You are not alone. If you&apos;re in crisis, please reach out to these mental health helplines:
+                              </p>
+                              <div className="space-y-2">
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm" 
+                                  className="w-full justify-start gap-2 h-10 bg-red-600 hover:bg-red-700" 
+                                  onClick={() => window.open("tel:14416")}
+                                >
+                                  <PhoneCall size={16} /> Tele-MANAS: 14416
+                                </Button>
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm" 
+                                  className="w-full justify-start gap-2 h-10 bg-red-600 hover:bg-red-700" 
+                                  onClick={() => window.open("tel:9152987821")}
+                                >
+                                  <PhoneCall size={16} /> iCall: 9152987821
+                                </Button>
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm" 
+                                  className="w-full justify-start gap-2 h-10 bg-red-600 hover:bg-red-700" 
+                                  onClick={() => window.open("tel:18005990019")}
+                                >
+                                  <PhoneCall size={16} /> Vandrevala Foundation: 1800-599-0019
+                                </Button>
                               </div>
-                              <div className="flex-1 space-y-1">
-                                <h4 className="font-bold text-red-600 dark:text-red-400">Help is Available</h4>
-                                <p className="text-xs text-muted-foreground leading-relaxed">
-                                  You are not alone. If you are in immediate danger, please contact emergency services.
-                                </p>
-                                <div className="pt-2 flex flex-col gap-2">
-                                  <Button variant="destructive" size="sm" className="w-full justify-start gap-2 h-8" onClick={() => window.open("tel:988")}>
-                                    <PhoneCall size={14} /> Call 988 (Crisis Lifeline)
-                                  </Button>
-                                  <Button variant="outline" size="sm" className="w-full justify-start gap-2 h-8 border-red-500/20 hover:bg-red-500/5 text-red-600 dark:text-red-400" onClick={() => router.push("/resources")}>
-                                    <ArrowRight size={14} /> View All Resources
-                                  </Button>
-                                </div>
+                              <div className="pt-2 border-t border-red-200 dark:border-red-800">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="w-full justify-center gap-2 h-10 border-red-500 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 font-semibold" 
+                                  onClick={() => window.open("https://telemanas.mohfw.gov.in/", "_blank")}
+                                >
+                                  <ArrowRight size={16} /> Visit Tele-MANAS Website
+                                </Button>
                               </div>
+                              <p className="text-xs text-red-600/70 dark:text-red-400/70 text-center">
+                                24/7 Free Mental Health Support
+                              </p>
                             </div>
                           </div>
                         )}

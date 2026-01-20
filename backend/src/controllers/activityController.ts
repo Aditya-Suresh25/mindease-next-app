@@ -1,7 +1,80 @@
 import { Request, Response, NextFunction } from "express";
 import { Activity, IActivity } from "../models/Activity";
+import { Mood } from "../models/Mood";
 import { logger } from "../utils/logger";
-import { sendActivityCompletionEvent } from "../utils/inngestEvents"
+import { selectActivities } from "../utils/activityLogic";
+import { ACTIVITY_BLUEPRINTS } from "../data/blueprints";
+
+// Get all available activity blueprints
+export const getAllActivityBlueprints = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    res.json({
+      success: true,
+      data: ACTIVITY_BLUEPRINTS,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get activity suggestions based on latest mood
+export const getSuggestions = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    // Fetch the latest mood entry for the user
+    const latestMood = await Mood.findOne({ userId, isDeleted: false })
+      .sort({ timestamp: -1 })
+      .lean();
+
+    // Default values if no mood found
+    const moodScore = latestMood?.score ?? 50;
+    const intensity = latestMood?.intensity ?? 3;
+
+    // Fetch recent activity IDs to avoid repetition
+    const recentActivities = await Activity.find({ userId, isDeleted: false })
+      .sort({ timestamp: -1 })
+      .limit(5)
+      .select("type")
+      .lean();
+
+    const recentActivityIds = recentActivities.map((a) => a.type);
+
+    // Generate recommendations using deterministic logic
+    const { recommendations, reason } = selectActivities({
+      moodScore,
+      intensity,
+      recentActivityIds,
+    });
+
+    logger.info(`Activity suggestions generated for user ${userId}`);
+
+    res.json({
+      success: true,
+      data: {
+        recommendations,
+        reason,
+        basedOnMood: latestMood
+          ? { score: moodScore, intensity, timestamp: latestMood.timestamp }
+          : null,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 // Log a new activity
 export const logActivity = async (
@@ -31,18 +104,6 @@ export const logActivity = async (
 
     await activity.save();
     logger.info(`Activity logged for user ${userId}`);
-
-    // Send activity completion event to Inngest
-    await sendActivityCompletionEvent({
-      userId,
-      id: activity._id,
-      type,
-      name,
-      duration,
-      difficulty,
-      feedback,
-      timestamp: activity.timestamp,
-    });
 
     res.status(201).json({
       success: true,

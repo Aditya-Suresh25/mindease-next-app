@@ -28,11 +28,11 @@ export const getAllSessions = async (req: any, res: any) => {
 // Create a new chat session
 export const createChatSession = async (req: any, res: any) => {
   try {
-    if (!req.user || !req.user.id) {
+    if (!req.user || !req.user._id) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const userId = new Types.ObjectId(req.user.id);
+    const userId = req.user._id;
 
     // If an active session already exists for this user, return it instead of creating a duplicate
     const existingSession = await ChatSession.findOne({ userId, status: "active" });
@@ -77,7 +77,7 @@ export const createChatSession = async (req: any, res: any) => {
 export const deleteChatSession = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const userId = new Types.ObjectId(req.user.id);
+    const userId = req.user._id;
 
     const session = await ChatSession.findOne({ sessionId: id });
     if (!session) {
@@ -106,7 +106,7 @@ export const sendMessage = async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
     const { message } = req.body;
-    const userId = new Types.ObjectId(req.user.id);
+    const userId = req.user._id;
 
     // 1. Debounce Check
     const lastRequest = sessionLastRequestMap.get(sessionId) || 0;
@@ -172,11 +172,18 @@ export const sendMessage = async (req: Request, res: Response) => {
       goals: event.data.goals,
     })}
     
+    IMPORTANT: Set "isCrisis" to true ONLY if the message contains:
+    - Suicidal thoughts or ideation
+    - Self-harm intentions or mentions
+    - Immediate danger to self or others
+    - Severe emotional distress indicating urgent help needed
+    
     Required JSON structure:
     {
       "emotionalState": "string",
       "themes": ["string"],
-      "riskLevel": number,
+      "riskLevel": number (0-5, where 5 is highest risk),
+      "isCrisis": boolean,
       "recommendedApproach": "string",
       "progressIndicators": ["string"],
       "suggestedResponses": ["string (max 3 short user reply options)"]
@@ -201,6 +208,7 @@ export const sendMessage = async (req: Request, res: Response) => {
         emotionalState: "neutral",
         themes: [],
         riskLevel: 0,
+        isCrisis: false,
         recommendedApproach: "supportive",
         progressIndicators: [],
         suggestedResponses: []
@@ -304,7 +312,7 @@ export const sendMessage = async (req: Request, res: Response) => {
 export const getSessionHistory = async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
-    const userId = new Types.ObjectId(req.user.id);
+    const userId = req.user._id;
 
     const session = await ChatSession.findOne({ sessionId });
     if (!session) {
@@ -346,7 +354,7 @@ export const getChatSession = async (req: Request, res: Response) => {
 export const getChatHistory = async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
-    const userId = new Types.ObjectId(req.user.id);
+    const userId = req.user._id;
 
     // Find session by sessionId instead of _id
     const session = await ChatSession.findOne({ sessionId });

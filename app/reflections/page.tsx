@@ -65,7 +65,9 @@ export default function ReflectionsPage() {
                         setReports(result);
                         setSelectedReport(newLatest);
                         setIsGenerating(false);
-                        toast.success("Reflection report ready!");
+                        toast.success("Reflection complete", {
+                            description: "Your insights are ready to explore. 🌸",
+                        });
                         return;
                     }
                 }
@@ -74,14 +76,18 @@ export default function ReflectionsPage() {
                     clearInterval(poll);
                     setIsGenerating(false);
                     setGenerationError("Analysis took too long. Please try again.");
-                    toast.error("Generation timed out");
+                    toast.error("Taking longer than expected", {
+                        description: "Please try again in a moment. 🍃",
+                    });
                 }
             }, pollInterval);
 
         } catch (error) {
             setIsGenerating(false);
             setGenerationError("Failed to initiate generation.");
-            toast.error("Failed to start generation");
+            toast.error("Couldn't start reflection", {
+                description: "Please try again shortly. 🌿",
+            });
         }
     };
 

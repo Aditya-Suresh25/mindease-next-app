@@ -43,6 +43,7 @@ import {
 import { AnxietyGames } from "@/components/games/anxiety-games"
 import { MoodForm } from "@/components/mood/mood-form"
 import { ActivityLogger } from "@/components/activities/activity-logger"
+import { AllActivities } from "@/components/activities/all-activities"
 
 // API
 import { getActivities } from "@/lib/api/activity"
@@ -76,6 +77,7 @@ export default function DashboardPage() {
 
   const [showMoodModal, setShowMoodModal] = useState(false)
   const [showActivityLogger, setShowActivityLogger] = useState(false)
+  const [showAllActivities, setShowAllActivities] = useState(false)
 
   // Stats State
   const [moodScore, setMoodScore] = useState(0)
@@ -469,7 +471,7 @@ export default function DashboardPage() {
           transition={{ delay: 0.4 }}
           className="pt-4"
         >
-          <AnxietyGames />
+          <AnxietyGames onViewAllActivities={() => setShowAllActivities(true)} />
         </motion.div>
 
       </Container>
@@ -507,6 +509,11 @@ export default function DashboardPage() {
           setShowActivityLogger(false)
           fetchDashboardStats()
         }}
+      />
+
+      <AllActivities
+        open={showAllActivities}
+        onOpenChange={setShowAllActivities}
       />
 
       {/* Crisis Modal */}

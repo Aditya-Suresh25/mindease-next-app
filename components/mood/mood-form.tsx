@@ -53,19 +53,25 @@ export function MoodForm({ onSuccess, initialData }: MoodFormProps) {
           score: moodScore,
           note: notes.trim(),
         });
-        toast.success("Mood updated successfully!");
+        toast.success("Mood updated", {
+          description: "Your feelings matter. Keep reflecting. 🌿",
+        });
       } else {
         // ✅ Included notes in the API call
         await trackMood({
           score: moodScore,
           note: notes.trim()
         });
-        toast.success("Mood tracked successfully!");
+        toast.success("Mood tracked", {
+          description: "Taking a moment to reflect is self-care. 🌸",
+        });
       }
 
       onSuccess?.();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save mood");
+      toast.error("Couldn't save mood", {
+        description: "Please try again in a moment. 🌿",
+      });
     } finally {
       setIsLoading(false);
     }

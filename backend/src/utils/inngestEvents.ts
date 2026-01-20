@@ -44,24 +44,3 @@ export const sendMoodUpdateEvent = async (moodData: any) => {
     throw error;
   }
 };
-
-export const sendActivityCompletionEvent = async (activityData: any) => {
-  try {
-    await inngest.send({
-      name: "activity/completed",
-      data: {
-        userId: activityData.userId,
-        activityId: activityData.id,
-        timestamp: new Date().toISOString(),
-        duration: activityData.duration,
-        difficulty: activityData.difficulty,
-        feedback: activityData.feedback,
-        ...activityData,
-      },
-    });
-    logger.info("Activity completion event sent successfully");
-  } catch (error) {
-    logger.error("Failed to send activity completion event:", error);
-    throw error;
-  }
-};
