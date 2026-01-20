@@ -1,313 +1,618 @@
 "use client"
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Container } from "@/components/ui/container";
-import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
-import { Activity, ArrowRight, Bell, Brain, BrainCircuit, Heart, Loader2, MessageSquare, Sparkles, Trophy } from "lucide-react";
-import { useState,useEffect } from "react"
-import {format} from "date-fns"
-import { Dialog,DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AnxietyGames } from "@/components/games/anxiety-games";
-import { MoodForm } from "@/components/mood/mood-form";
-import { ActivityLogger } from "@/components/activities/activity-logger";
-import { useRouter } from "next/navigation";
 
-export default function DashboardPage(){
+import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
+import { useSession } from "@/lib/contexts/session-context"
+import { format, startOfDay, endOfDay } from "date-fns"
+import { motion } from "framer-motion"
+import { cn } from "@/lib/utils"
 
-    const [currentTime,setCurrentTime] = useState(new Date());
-    const [showMoodModal,setShowMoodModal] = useState(false);
-    const [isSavingMood,setIsSavingMood] = useState(false);
-    const [showActivityLogger,setShowActivityLogger] = useState(false);
+// UI Components
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
+import { Separator } from "@/components/ui/separator"
+import { Container } from "@/components/ui/container"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
 
-    const router = useRouter();
+// Icons
+import {
+  Activity,
+  ArrowRight,
+  Brain,
+  Calendar,
+  Clock,
+  Heart,
+  Loader2,
+  MessageSquare,
+  Sparkles,
+  Zap,
+  TrendingUp,
+  RefreshCw,
+  PhoneCall
+} from "lucide-react"
 
+// Feature Components
+import { AnxietyGames } from "@/components/games/anxiety-games"
+import { MoodForm } from "@/components/mood/mood-form"
+import { ActivityLogger } from "@/components/activities/activity-logger"
+import { AllActivities } from "@/components/activities/all-activities"
+import { DailyQuote } from "@/components/quote/daily-quote"
 
-    const handleMoodSubmit = async(data:{moodScore:number}) => {
-        setIsSavingMood(true);
-        try {
-            setShowMoodModal(false)
-        } catch (error) {
-            console.error("Error saving mood :",error)
-        }finally{
-            setIsSavingMood(false)
+// API
+import { getActivities } from "@/lib/api/activity"
+import { getMoodHistory } from "@/lib/api/mood"
+import { getAllChatSessions } from "@/lib/api/chat"
+import { getLatestRecommendation } from "@/lib/api/recommendation"
+import { getUserStats } from "@/lib/api/user"
+
+export default function DashboardPage() {
+
+  const router = useRouter()
+
+  const handleSettings = () => {
+    router.push("/settings")
+  }
+  const { user } = useSession()
+
+  const [currentTime, setCurrentTime] = useState(new Date())
+
+  const [showMoodModal, setShowMoodModal] = useState(false)
+  const [showActivityLogger, setShowActivityLogger] = useState(false)
+  const [showAllActivities, setShowAllActivities] = useState(false)
+
+  // Stats State
+  const [moodScore, setMoodScore] = useState(0)
+  const [todayActivities, setTodayActivities] = useState(0)
+  const [todayTherapySessions, setTodayTherapySessions] = useState(0)
+  const [streak, setStreak] = useState(0) // Initialize to 0 instead of mock 7
+  const [isLoadingStats, setIsLoadingStats] = useState(true)
+  const [aiInsight, setAiInsight] = useState<string | null>(null)
+  const [showCrisisModal, setShowCrisisModal] = useState(false)
+
+  /* ---------------- Core Sync ---------------- */
+  const fetchDashboardStats = useCallback(async () => {
+    try {
+      setIsLoadingStats(true)
+      const today = new Date()
+      const dayStart = startOfDay(today)
+      const dayEnd = endOfDay(today)
+
+      // Parallel fetching for speed
+      const [moods, activities, sessions, recommendation, userStats] = await Promise.all([
+        getMoodHistory({ startDate: dayStart.toISOString(), endDate: dayEnd.toISOString() }),
+        getActivities(),
+        getAllChatSessions(),
+        getLatestRecommendation("daily_insight"),
+        getUserStats()
+      ])
+
+      if (recommendation.success && recommendation.data) {
+        setAiInsight(recommendation.data.content)
+      }
+
+      if (userStats.success && userStats.data) {
+        setStreak(userStats.data.streak)
+      }
+
+      // Process Mood & Crisis Detection
+      if (moods.success && moods.data.length) {
+        const avg = Math.round(
+          moods.data.reduce((s: number, m: any) => s + (m.score || 0), 0) / moods.data.length
+        )
+        setMoodScore(avg)
+
+        // Crisis Detection: Last 3 moods < 30
+        const recentMoods = moods.data.slice(0, 3);
+        const isCrisis = recentMoods.length >= 3 && recentMoods.every((m: any) => m.score < 30);
+
+        // Simple check to avoid spamming
+        if (isCrisis && !sessionStorage.getItem("crisis_shown")) {
+          setShowCrisisModal(true);
+          sessionStorage.setItem("crisis_shown", "true");
         }
+
+        // Feature 4: Daily Mood Check
+        // Check if there is a mood for today
+        const hasLogToday = moods.data.some((m: any) => {
+          const d = new Date(m.timestamp);
+          return d >= dayStart && d <= dayEnd;
+        });
+
+        if (!hasLogToday && !sessionStorage.getItem("daily_check_skipped")) {
+          // Small delay to let UI load
+          setTimeout(() => setShowMoodModal(true), 1500);
+        }
+
+      } else {
+        setMoodScore(0)
+        // If no moods at all, definitely prompt
+        if (!sessionStorage.getItem("daily_check_skipped")) {
+          setTimeout(() => setShowMoodModal(true), 1500);
+        }
+      }
+
+      // Process Activities
+      if (activities.success) {
+        const count = activities.data.filter((a: any) => {
+          const d = new Date(a.timestamp)
+          return d >= dayStart && d <= dayEnd
+        }).length
+        setTodayActivities(count)
+      }
+
+      // Process Sessions
+      if (Array.isArray(sessions)) {
+        const count = sessions.filter((s: any) => {
+          const d = new Date(s.createdAt)
+          return d >= dayStart && d <= dayEnd
+        }).length
+        setTodayTherapySessions(count)
+      }
+
+      setIsLoadingStats(false)
+    } catch (e) {
+      console.error(e)
+      setIsLoadingStats(false)
     }
+  }, [])
 
-    const handleAICheckIn= () => {
-        setShowActivityLogger(true)
-    }
+  /* ---------------- Effects ---------------- */
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
+    fetchDashboardStats()
+    return () => clearInterval(timer)
+  }, [fetchDashboardStats])
 
-    const handleStartTheraphy = () => {
-        router.push("/therapy/new")
-    }
-
-    const dailyStats = {
-    moodScore: 85,
-    mindfulnessCount: 1,
-    totalActivities: 4,
-    lastUpdated: new Date(), // Use current date for mock
-};
-
-
-
-  
-
-const handleGamePlayed = {}
-
-
-
-  
-
-// Defining wellnessStats using mock dailyStats
-const wellnessStats = [
+  /* ---------------- UI Config ---------------- */
+  const wellnessStats = [
     {
-        title: "Mood Score",
-        // Using dummy value instead of dynamic dailyStats.moodScore
-        value: "85%", 
-        icon: Brain,
-        color: "text-purple-500",
-        bgColor: "bg-purple-500/10",
-        description: "Today's average mood",
+      title: "Mood Score",
+      value: moodScore ? `${moodScore}%` : "—",
+      icon: Brain,
+      color: "text-violet-500 dark:text-violet-400",
+      gradientFrom: "from-violet-500/20",
+      gradientTo: "to-purple-500/10",
+      borderColor: "border-violet-500/30 dark:border-violet-400/20",
+      iconBg: "bg-violet-500/15 dark:bg-violet-500/20",
+      description: "Daily Average",
+      trend: "+2%",
+      showProgress: true,
+      progressValue: moodScore,
     },
     {
-        title: "Completion Rate",
-        value: "100%",
-        icon: Trophy,
-        color: "text-yellow-500",
-        bgColor: "bg-yellow-500/10",
-        description: "Perfect completion rate",
+      title: "Streak",
+      value: `${streak} Days`,
+      icon: Zap,
+      color: "text-amber-500 dark:text-amber-400",
+      gradientFrom: "from-amber-500/20",
+      gradientTo: "to-orange-500/10",
+      borderColor: "border-amber-500/30 dark:border-amber-400/20",
+      iconBg: "bg-amber-500/15 dark:bg-amber-500/20",
+      description: "Consistency",
+      trend: "+1 day",
     },
     {
-        title: "Therapy Sessions",
-        // Using dummy value instead of dynamic dailyStats.mindfulnessCount
-        value: "1 session",
-        icon: Heart,
-        color: "text-rose-500",
-        bgColor: "bg-rose-500/10",
-        description: "Total sessions completed",
+      title: "Sessions",
+      value: `${todayTherapySessions}`,
+      icon: Heart,
+      color: "text-rose-500 dark:text-rose-400",
+      gradientFrom: "from-rose-500/20",
+      gradientTo: "to-pink-500/10",
+      borderColor: "border-rose-500/30 dark:border-rose-400/20",
+      iconBg: "bg-rose-500/15 dark:bg-rose-500/20",
+      description: "Therapy Chats",
+      trend: todayTherapySessions > 0 ? "Great job" : "Start one",
     },
     {
-        title: "Total Activities",
-        // Using dummy value instead of dynamic dailyStats.totalActivities
-        value: "4",
-        icon: Activity,
-        color: "text-blue-500",
-        bgColor: "bg-blue-500/10",
-        description: "Planned for today",
+      title: "Activities",
+      value: `${todayActivities}`,
+      icon: Activity,
+      color: "text-teal-500 dark:text-teal-400",
+      gradientFrom: "from-teal-500/20",
+      gradientTo: "to-cyan-500/10",
+      borderColor: "border-teal-500/30 dark:border-teal-400/20",
+      iconBg: "bg-teal-500/15 dark:bg-teal-500/20",
+      description: "Logged Actions",
+      trend: todayActivities > 0 ? "Active" : "Log now",
     },
-];
+  ]
+
+  const quickActions = [
+    {
+      title: "Track Mood",
+      description: "Check-in with yourself",
+      icon: Heart,
+      iconColor: "text-rose-500 dark:text-rose-400",
+      gradientFrom: "from-rose-500/10",
+      gradientTo: "to-pink-500/5",
+      hoverGradient: "hover:from-rose-500/20 hover:to-pink-500/10",
+      borderColor: "border-rose-200/50 dark:border-rose-500/20",
+      iconBg: "bg-rose-100 dark:bg-rose-500/20",
+      onClick: () => setShowMoodModal(true),
+    },
+    {
+      title: "Log Activity",
+      description: "Record your progress",
+      icon: Activity,
+      iconColor: "text-teal-500 dark:text-teal-400",
+      gradientFrom: "from-teal-500/10",
+      gradientTo: "to-cyan-500/5",
+      hoverGradient: "hover:from-teal-500/20 hover:to-cyan-500/10",
+      borderColor: "border-teal-200/50 dark:border-teal-500/20",
+      iconBg: "bg-teal-100 dark:bg-teal-500/20",
+      onClick: () => setShowActivityLogger(true),
+    },
+    {
+      title: "AI Therapy",
+      description: "Chat with MindEase",
+      icon: MessageSquare,
+      iconColor: "text-white",
+      isPrimary: true,
+      onClick: () => router.push("/therapy/new"),
+    },
+    {
+      title: "Emergency Aid",
+      description: "Get immediate help",
+      icon: PhoneCall,
+      iconColor: "text-orange-500 dark:text-orange-400",
+      gradientFrom: "from-orange-500/10",
+      gradientTo: "to-amber-500/5",
+      hoverGradient: "hover:from-orange-500/20 hover:to-amber-500/10",
+      borderColor: "border-orange-200/50 dark:border-orange-500/20",
+      iconBg: "bg-orange-100 dark:bg-orange-500/20",
+      onClick: () => router.push("/resources"),
+    },
+    {
+      title: "Wellbeing Reports",
+      description: "View AI reflections",
+      icon: Sparkles,
+      iconColor: "text-violet-500 dark:text-violet-400",
+      gradientFrom: "from-violet-500/10",
+      gradientTo: "to-purple-500/5",
+      hoverGradient: "hover:from-violet-500/20 hover:to-purple-500/10",
+      borderColor: "border-violet-200/50 dark:border-violet-500/20",
+      iconBg: "bg-violet-100 dark:bg-violet-500/20",
+      onClick: () => router.push("/reflections"),
+    },
+  ]
+
+  /* ---------------- Render ---------------- */
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5 dark:to-primary/10 relative overflow-hidden">
+
+      {/* Ambient Background - Softer, more calming */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-gradient-to-br from-teal-400/8 to-cyan-400/5 dark:from-teal-500/10 dark:to-cyan-500/5 rounded-full blur-[120px]" />
+        <div className="absolute top-[20%] right-[-10%] w-[500px] h-[500px] bg-gradient-to-bl from-violet-400/8 to-purple-400/5 dark:from-violet-500/10 dark:to-purple-500/5 rounded-full blur-[100px]" />
+        <div className="absolute bottom-[-10%] left-[20%] w-[500px] h-[500px] bg-gradient-to-tr from-rose-400/6 to-pink-400/4 dark:from-rose-500/8 dark:to-pink-500/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[30%] right-[10%] w-[400px] h-[400px] bg-gradient-to-tl from-amber-400/6 to-orange-400/4 dark:from-amber-500/8 dark:to-orange-500/5 rounded-full blur-[100px]" />
+      </div>
+
+      <Container className="relative z-10 pt-8 pb-12 space-y-10 md:space-y-14">
+
+        {/* 1. Hero Section */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6"
+        >
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-primary/10 to-teal-500/10 dark:from-primary/15 dark:to-teal-500/15 border border-primary/20 dark:border-primary/30 backdrop-blur-sm shadow-sm">
+                <Calendar className="h-3.5 w-3.5 text-primary" />
+                <span className="text-xs font-medium text-foreground/80">{format(currentTime, "EEEE, MMMM do")}</span>
+              </div>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-violet-500/10 to-purple-500/10 dark:from-violet-500/15 dark:to-purple-500/15 border border-violet-500/20 dark:border-violet-500/30 backdrop-blur-sm shadow-sm">
+                <Clock className="h-3.5 w-3.5 text-violet-500 dark:text-violet-400" />
+                <span className="text-xs font-medium text-foreground/80">{format(currentTime, "h:mm a")}</span>
+              </div>
+            </div>
+            <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-foreground">
+              Good {parseInt(format(currentTime, "H")) < 12 ? "Morning" : parseInt(format(currentTime, "H")) < 17 ? "Afternoon" : "Evening"}, <br />
+              <span className="bg-gradient-to-r from-primary via-teal-500 to-cyan-500 dark:from-primary dark:via-teal-400 dark:to-cyan-400 bg-clip-text text-transparent">
+                {user?.name || "Friend"}
+              </span>
+            </h1>
+            <p className="text-muted-foreground text-sm md:text-base max-w-md">
+              Take a moment to check in with yourself. Your wellbeing matters. 💚
+            </p>
+          </div>
+
+          {isLoadingStats && (
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-gradient-to-r from-primary/10 to-teal-500/10 border border-primary/20 backdrop-blur-md shadow-sm">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <span className="text-xs font-medium text-foreground/70">Syncing your data...</span>
+            </div>
+          )}
+        </motion.div>
 
 
-    
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.1 }}
+        >
+          <DailyQuote 
+            isAuthenticated={!!user} 
+            variant="card"
+          />
+        </motion.div>
 
-    useEffect(()=>{
-        const timer = setInterval(()=> setCurrentTime(new Date()),1000);
-        return () => clearInterval(timer); //cleanup
-    },[])
+        {/* 3. Stats Grid */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <div className="flex items-center justify-between mb-6 px-1">
+            <h2 className="text-lg font-semibold flex items-center gap-2.5 text-foreground">
+              <div className="p-1.5 rounded-lg bg-gradient-to-br from-primary/20 to-teal-500/20 dark:from-primary/30 dark:to-teal-500/30">
+                <TrendingUp className="w-4 h-4 text-primary" />
+              </div>
+              Today's Overview
+            </h2>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => router.push("/stories")}
+                className="rounded-xl border-primary/20 hover:border-primary/40 hover:bg-primary/5 text-foreground/80 hover:text-foreground transition-all"
+              >
+                Read Stories
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => router.push("/history")}
+                className="rounded-xl border-violet-500/20 hover:border-violet-500/40 hover:bg-violet-500/5 text-foreground/80 hover:text-foreground transition-all"
+              >
+                View History
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={fetchDashboardStats}
+                className="h-9 w-9 rounded-xl p-0 hover:bg-primary/10 transition-all"
+              >
+                <RefreshCw className={cn("w-4 h-4 text-primary", isLoadingStats && "animate-spin")} />
+              </Button>
+            </div>
+          </div>
 
-    return(
-   <div className="min-h-screen bg-background p-8">
-            <Container className="pt-20 pb-8 space-y-6">
-                {/* Header Section */}
-                <div className="flex justify-between items-center">
-                    <motion.div
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="space-y-2"
-                    >
-                        <h1 className="text-3xl font-bold text-foreground">
-                            Welcome back
-                        </h1>
-                        <p className="text-muted-foreground text-sm">
-                            {currentTime.toLocaleDateString("en-IN", {
-                                weekday: "long",
-                                month: "long",
-                                day: "numeric",
-                            })}
-                        </p>
-                    </motion.div>
-                    <div className="flex items-center gap-4">
-                        <Button variant="outline" size="icon">
-                            <Bell className="h-5 w-5" />
-                        </Button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6">
+            {wellnessStats.map((stat, idx) => (
+              <motion.div
+                key={stat.title}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 * idx }}
+                className="group relative"
+              >
+                {/* Card background with gradient */}
+                <div className={cn(
+                  "absolute inset-0 rounded-3xl transition-all duration-300",
+                  "bg-gradient-to-br",
+                  stat.gradientFrom,
+                  stat.gradientTo,
+                  "dark:opacity-80"
+                )} />
+                <div className={cn(
+                  "absolute inset-0 rounded-3xl backdrop-blur-sm",
+                  "bg-white/60 dark:bg-gray-900/40",
+                  "border",
+                  stat.borderColor,
+                  "shadow-sm group-hover:shadow-md transition-all duration-300"
+                )} />
+
+                <div className="relative p-6 h-full flex flex-col justify-between">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className={cn(
+                      "p-3 rounded-2xl transition-transform duration-300 group-hover:scale-110",
+                      stat.iconBg
+                    )}>
+                      <stat.icon className={cn("w-5 h-5", stat.color)} />
                     </div>
-                </div>
+                    {stat.trend && (
+                      <span className={cn(
+                        "text-[10px] font-semibold px-2.5 py-1 rounded-full",
+                        "bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm",
+                        "border border-current/20",
+                        "shadow-sm",
+                        stat.color
+                      )}>
+                        {stat.trend}
+                      </span>
+                    )}
+                  </div>
 
-                {/* Main Grid Layout (Quick Actions and Overview) */}
-                <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        
-                        {/* Quick Actions Card (occupies 1 column) */}
-                        <Card className="border-primary/10 relative overflow-hidden group">
-                            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-primary/10 to-transparent" />
-                            <CardContent className="p-6 relative">
-                                <div className="space-y-6">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                            <Sparkles className="w-5 h-5 text-primary" />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-semibold text-lg">Quick Actions</h3>
-                                            <p className="text-sm text-muted-foreground">
-                                                Start your wellness journey
-                                            </p>
-                                        </div>
-                                    </div>
+                  <div>
+                    <h3 className="text-2xl font-bold tracking-tight mb-1 text-foreground">{stat.value}</h3>
+                    <p className="text-xs font-medium text-muted-foreground">{stat.description}</p>
 
-                                    <div className="grid gap-3">
-                                        {/* Start Therapy Button */}
-                                        <Button
-                                            variant="default"
-                                            className={cn(
-                                                "w-full justify-between items-center p-6 h-auto group/button",
-                                                "bg-gradient-to-r from-primary/90 to-primary hover:from-primary hover:to-primary/90",
-                                                "transition-all duration-200 group-hover:translate-y-[-2px]"
-                                            )}
-                                            onClick={handleStartTheraphy}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-                                                    <MessageSquare className="w-4 h-4 text-white" />
-                                                </div>
-                                                <div className="text-left">
-                                                    <div className="font-semibold text-white">
-                                                        Start Therapy
-                                                    </div>
-                                                    <div className="text-xs text-white/80">
-                                                        Begin a new session
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="opacity-0 group-hover/button:opacity-100 transition-opacity">
-                                                <ArrowRight className="w-5 h-5 text-white" />
-                                            </div>
-                                        </Button>
-
-                                        <div className="grid grid-cols-2 gap-3">
-                                            {/* Track Mood Button */}
-                                            <Button
-                                                variant="outline"
-                                                className={cn(
-                                                    "flex flex-col h-[120px] px-4 py-3 group/mood hover:border-primary/50",
-                                                    "justify-center items-center text-center",
-                                                    "transition-all duration-200 group-hover:translate-y-[-2px]"
-                                                )}
-                                                onClick={() => setShowMoodModal(true)}
-                                            >
-                                                <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center mb-2">
-                                                    <Heart className="w-5 h-5 text-rose-500" />
-                                                </div>
-                                                <div>
-                                                    <div className="font-medium text-sm">Track Mood</div>
-                                                    <div className="text-xs text-muted-foreground mt-0.5">
-                                                        How are you feeling?
-                                                    </div>
-                                                </div>
-                                            </Button>
-                                            
-
-                                            {/* AI Check-in Button */}
-                                            <Button
-                                                 onClick={handleAICheckIn}
-                                                variant="outline"
-                                                className={cn(
-                                                    "flex flex-col h-[120px] px-4 py-3 group/ai hover:border-primary/50",
-                                                    "justify-center items-center text-center",
-                                                    "transition-all duration-200 group-hover:translate-y-[-2px]"
-                                                )}
-                                                
-                                            >
-                                                <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center mb-2">
-                                                    <BrainCircuit className="w-5 h-5 text-blue-500" />
-                                                </div>
-                                                <div>
-                                                    <div className="font-medium text-sm">Check-in</div>
-                                                    <div className="text-xs text-muted-foreground mt-0.5">
-                                                        Quick wellness check
-                                                    </div>
-                                                </div>
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Today's Overview Card (Now correctly placed inside the grid) */}
-                        {/* Note: Added lg:col-span-2 here to make it take up the remaining space (2 columns on large screens) */}
-                        <Card className="border-primary/10 lg:col-span-2"> 
-                            <CardHeader>
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <CardTitle>Today's Overview</CardTitle>
-                                        <CardDescription>
-                                            Your wellness metrics for{" "}
-                                            {format(new Date(), "MMMM d, yyyy")} 
-                                        </CardDescription>
-                                    </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8"
-                                    >
-                                        <Loader2 className={cn("h-4 w-4", "animate-spin")} />
-                                    </Button>
-                                </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-2 gap-3">
-                                    {wellnessStats.map((stat) => (
-                                        <div
-                                            key={stat.title}
-                                            className={cn(
-                                                "p-4 rounded-lg transition-all duration-200 hover:scale-[1.02]",
-                                                stat.bgColor
-                                            )}
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <stat.icon className={cn("w-5 h-5", stat.color)} />
-                                                <p className="text-sm font-medium">{stat.title}</p>
-                                            </div>
-                                            <p className="text-2xl font-bold mt-2">{stat.value}</p>
-                                            <p className="text-sm text-muted-foreground mt-1">
-                                                {stat.description}
-                                            </p>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="mt-4 text-xs text-muted-foreground text-right">
-                                    Last updated: {format(dailyStats.lastUpdated, "h:mm a")}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    {/* Content Grid (Anxiety Games Section) */}
-                    {/* Using a separate grid for the component below the main cards */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Left side - Spans 3 columns to take full width */}
-                        <div className="lg:col-span-3 space-y-6">
-                            <AnxietyGames/>
+                    {stat.showProgress && (
+                      <div className="mt-4 space-y-2">
+                        <div className="flex justify-between text-[10px] text-muted-foreground font-medium">
+                          <span>Progress</span>
+                          <span>{stat.progressValue}%</span>
                         </div>
-                    </div>
+                        <div className="h-2 rounded-full bg-white/50 dark:bg-gray-800/50 overflow-hidden">
+                          <div 
+                            className={cn(
+                              "h-full rounded-full transition-all duration-500",
+                              "bg-gradient-to-r from-violet-500 to-purple-500"
+                            )}
+                            style={{ width: `${stat.progressValue}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-            </Container>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
 
-            {/* mood tracking modal  */}
-            <Dialog open={showMoodModal} onOpenChange={setShowMoodModal}>
-                <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                     <DialogTitle>How are you feeling?</DialogTitle>
-                     <DialogDescription>Move the slider to track your currnet mood</DialogDescription>
-                    </DialogHeader>
-                    {/* mood form */}
-                   <MoodForm onSubmit={handleMoodSubmit} isLoading={isSavingMood} />
-                </DialogContent>
-            </Dialog>
-     <ActivityLogger
+        {/* 4. Quick Actions */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-5">
+            {quickActions.map((action, idx) => (
+              <button
+                key={action.title}
+                onClick={action.onClick}
+                className={cn(
+                  "relative group overflow-hidden rounded-2xl p-5 text-left transition-all duration-300",
+                  action.isPrimary
+                    ? "col-span-1 md:col-span-2 lg:col-span-1 bg-gradient-to-br from-primary via-teal-500 to-cyan-500 dark:from-primary dark:via-teal-500 dark:to-cyan-600 text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/35 hover:-translate-y-1 hover:scale-[1.02]"
+                    : cn(
+                        "bg-gradient-to-br backdrop-blur-sm",
+                        action.gradientFrom,
+                        action.gradientTo,
+                        action.hoverGradient,
+                        "border",
+                        action.borderColor,
+                        "hover:shadow-md hover:-translate-y-0.5 transition-all"
+                      )
+                )}
+              >
+                {/* Subtle inner glow for non-primary buttons */}
+                {!action.isPrimary && (
+                  <div className="absolute inset-0 bg-white/40 dark:bg-white/5 rounded-2xl" />
+                )}
+
+                <div className="relative z-10 flex items-center gap-4">
+                  <div className={cn(
+                    "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 group-hover:scale-110",
+                    action.isPrimary 
+                      ? "bg-white/20 shadow-inner" 
+                      : action.iconBg
+                  )}>
+                    <action.icon className={cn("w-6 h-6", action.iconColor)} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className={cn(
+                      "font-bold text-base md:text-lg truncate",
+                      action.isPrimary ? "text-white" : "text-foreground"
+                    )}>
+                      {action.title}
+                    </h4>
+                    <p className={cn(
+                      "text-xs truncate",
+                      action.isPrimary ? "text-white/80" : "text-muted-foreground"
+                    )}>
+                      {action.description}
+                    </p>
+                  </div>
+                  <div className={cn(
+                    "transition-transform duration-300 group-hover:translate-x-1",
+                    action.isPrimary ? "text-white" : "text-muted-foreground group-hover:text-foreground"
+                  )}>
+                    <ArrowRight className="w-5 h-5" />
+                  </div>
+                </div>
+
+                {/* Shine effect on primary button */}
+                {action.isPrimary && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                )}
+              </button>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* 5. Anxiety Games Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="pt-4"
+        >
+          <AnxietyGames onViewAllActivities={() => setShowAllActivities(true)} />
+        </motion.div>
+
+      </Container>
+
+      {/* Modals */}
+      <Dialog open={showMoodModal} onOpenChange={(open) => {
+        setShowMoodModal(open);
+        if (!open) {
+          sessionStorage.setItem("daily_check_skipped", "true");
+        }
+      }}>
+        <DialogContent className="sm:max-w-md rounded-3xl bg-gradient-to-b from-white to-rose-50/50 dark:from-gray-900 dark:to-rose-950/30 backdrop-blur-xl border-rose-200/50 dark:border-rose-500/20 shadow-xl">
+          <DialogHeader className="space-y-4">
+            <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center shadow-lg shadow-rose-500/30">
+              <Heart className="h-7 w-7 text-white" />
+            </div>
+            <DialogTitle className="text-center text-xl font-bold text-foreground">How are you feeling?</DialogTitle>
+            <DialogDescription className="text-center text-muted-foreground">
+              Taking a moment to reflect helps build emotional awareness and self-compassion.
+            </DialogDescription>
+          </DialogHeader>
+          <MoodForm
+            onSuccess={() => {
+              setShowMoodModal(false)
+              fetchDashboardStats()
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <ActivityLogger
         open={showActivityLogger}
-        onOpenChange={setShowActivityLogger}/>
-        </div>
-    );
+        onOpenChange={setShowActivityLogger}
+        onSuccess={() => {
+          setShowActivityLogger(false)
+          fetchDashboardStats()
+        }}
+      />
+
+      <AllActivities
+        open={showAllActivities}
+        onOpenChange={setShowAllActivities}
+      />
+
+      {/* Crisis Modal */}
+      <Dialog open={showCrisisModal} onOpenChange={setShowCrisisModal}>
+        <DialogContent className="sm:max-w-md rounded-3xl bg-gradient-to-b from-white to-rose-50/50 dark:from-gray-900 dark:to-rose-950/30 backdrop-blur-xl border-rose-300/50 dark:border-rose-500/30 shadow-xl">
+          <DialogHeader>
+            <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center shadow-lg shadow-rose-500/30 mb-3">
+              <Heart className="h-7 w-7 text-white" />
+            </div>
+            <DialogTitle className="text-center text-xl font-bold text-foreground">We're here for you</DialogTitle>
+            <DialogDescription className="text-center pt-2 text-muted-foreground leading-relaxed">
+              We noticed you've been feeling low lately. It takes courage to acknowledge these feelings. 
+              You don't have to face this alone — support is available.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 pt-4">
+            <Button 
+              className="w-full bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white shadow-lg shadow-rose-500/25 rounded-xl py-5 font-semibold transition-all hover:shadow-xl" 
+              onClick={() => router.push("/resources")}
+            >
+              View Support Resources
+            </Button>
+            <Button 
+              variant="ghost" 
+              className="w-full text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-xl py-5" 
+              onClick={() => setShowCrisisModal(false)}
+            >
+              I'm okay for now
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
 }

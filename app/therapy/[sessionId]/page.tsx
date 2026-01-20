@@ -1,243 +1,765 @@
-"use client"
+"use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { deleteChatSessionApi } from "@/lib/api/chat";
 import {
   Send,
   Bot,
   User,
   Loader2,
-  Sparkles,    
-  Badge
+  PlusCircle,
+  MessageSquare,
+  Trash2,
+  Menu,
+  Volume2,
+  VolumeX,
+  Settings2,
+  ArrowDown,
+  Sparkles,
+  Shield,
+  PhoneCall,
+  ArrowRight,
 } from "lucide-react";
+import { RecommendationCard } from "@/components/chat/recommendation-card";
 import { cn } from "@/lib/utils";
-import {motion,AnimatePresence} from "framer-motion"
-import ReactMarkdown from "react-markdown"
+import { motion, AnimatePresence } from "framer-motion";
+import ReactMarkdown from "react-markdown";
+import { Badge } from "@/components/ui/badge";
+import {
+  createChatSession,
+  sendChatMessage,
+  getChatHistory,
+  getAllChatSessions,
+  ChatMessage,
+  ChatSession,
+} from "@/lib/api/chat";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { formatDistanceToNow } from "date-fns";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
+export default function TherapyPage() {
+  const params = useParams();
+  const router = useRouter();
 
-const glowAnimation = {
-  initial: { opacity: 0.5, scale: 1 },
-  animate: {
-    opacity: [0.5, 1, 0.5],
-    scale: [1, 1.05, 1],
-    transition: {
-      duration: 3,
-      repeat: Infinity,
-      ease: "easeInOut",
-    },
-  },
-};
+  const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(params.sessionId as string);
 
-export default function Therapypage(){
-    const [message, setMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [messages, setMessages] = useState<any[]>([]);
-  const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isChatPaused, setIsChatPaused] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [userScrolledUp, setUserScrolledUp] = useState(false);
 
-  
+  // Voice States
+  const [isSpeaking, setIsSpeaking] = useState<number | null>(null);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoiceName, setSelectedVoiceName] = useState<string | null>(null);
 
-  useEffect(() =>{setMounted(true)},[])
+  // Suggestions State
+  const [suggestions, setSuggestions] = useState<string[]>([]);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null) //scroll to bottom chat
+  // Initial welcome suggestions for new chats
+  const welcomeSuggestions = [
+    "I'm feeling anxious today",
+    "I need someone to talk to",
+    "Help me with stress management",
+    "I want to feel more positive",
+    "I'm having trouble sleeping",
+  ];
 
-  const scrollToBottom = () => {
-    if(messagesEndRef.current){
-        setTimeout(() => {messagesEndRef.current ?.scrollIntoView({behavior:"smooth"})
-    },100)
-    }
-  }
+  // Cooldown State
+  const [cooldown, setCooldown] = useState(0);
 
   useEffect(() => {
-    if(!isTyping){
-        scrollToBottom();
+    let interval: NodeJS.Timeout;
+    if (cooldown > 0) {
+      interval = setInterval(() => {
+        setCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
     }
-  },[messages,isTyping])
-    return(
-   // Assuming this is part of a larger React component function or render method
+    return () => clearInterval(interval);
+  }, [cooldown]);
 
-<div className="relative max-w-7xl mx-auto px-4">
-    <div className="flex h-[calc(100vh-4rem)] mt-20 gap-6">
-        <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-background rounded-lg border">
-            
-            <div className="p-4 border-b">
-                <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                        <Bot className="w-5 h-5" />
-                    </div>
-                    <div>
-                        <h2 className="font-semibold">AI Therapist</h2>
-                        <p className="text-sm text-muted-foreground">
-                            {messages.length} messages 
-                        </p>
-                    </div>
+  // Update suggestions when a new message arrives with metadata
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg.role === "assistant" && lastMsg.metadata?.suggestedResponses) {
+        setSuggestions(lastMsg.metadata.suggestedResponses);
+      } else {
+        setSuggestions([]);
+      }
+    }
+  }, [messages]);
+
+  const handleSuggestionClick = (text: string) => {
+    if (cooldown > 0) return;
+    setMessage(text);
+    setSuggestions([]);
+    // Optional: auto-submit could go here if we wanted to trigger handleSubmit immediately
+  };
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) router.push("/login");
+    else setMounted(true);
+  }, [router]);
+
+  // Load voices logic
+  useEffect(() => {
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      const englishVoices = voices.filter((v) => v.lang.startsWith("en"));
+      setAvailableVoices(englishVoices);
+
+      if (!selectedVoiceName && englishVoices.length > 0) {
+        const preferred = englishVoices.find((v) =>
+          /female|samantha|victoria|google uk english female/i.test(v.name)
+        );
+        if (preferred) setSelectedVoiceName(preferred.name);
+      }
+    };
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }, [selectedVoiceName]);
+
+  useEffect(() => {
+    const initChat = async () => {
+      setIsLoading(true);
+      try {
+        if (!sessionId || sessionId === "new") {
+          // Don't create session yet - just show empty chat UI
+          // Session will be created when user sends first message
+          setMessages([]);
+        } else {
+          const history = await getChatHistory(sessionId);
+          if (Array.isArray(history)) {
+            setMessages(history.map((m) => ({ ...m, timestamp: new Date(m.timestamp) })));
+          }
+        }
+      } catch { setMessages([]); } finally { setIsLoading(false); }
+    };
+    initChat();
+  }, [sessionId]);
+
+  // 1. Add a refresh trigger state
+  const [refreshSidebar, setRefreshSidebar] = useState(0);
+
+  // 2. Updated Fetcher: Watch for sessionId changes and manual refreshes
+  useEffect(() => {
+    const loadSessions = async () => {
+      try {
+        const all = await getAllChatSessions();
+        // Sort newest updated first
+        const sorted = all.sort((a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        );
+        setSessions(sorted);
+      } catch (err) {
+        console.error("Failed to fetch sessions", err);
+      }
+    };
+    loadSessions();
+  }, [messages.length, sessionId, refreshSidebar]);
+  // Added messages.length and sessionId as triggers
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    setUserScrolledUp(false);
+  };
+
+  useEffect(() => {
+    if (!userScrolledUp) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length, isTyping, userScrolledUp]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    const fromBottom = scrollHeight - scrollTop - clientHeight;
+    setShowScrollButton(fromBottom > 150);
+    if (fromBottom > 150) setUserScrolledUp(true);
+  };
+
+  const handleToggleSpeech = (text: string, index: number) => {
+    if (isSpeaking === index) { window.speechSynthesis.cancel(); setIsSpeaking(null); return; }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.9;
+    const voice = availableVoices.find((v) => v.name === selectedVoiceName);
+    if (voice) utterance.voice = voice;
+    utterance.onend = () => setIsSpeaking(null);
+    setIsSpeaking(index);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!message.trim() || isTyping || cooldown > 0) return;
+    setUserScrolledUp(false);
+    const userMsg: ChatMessage = { role: "user", content: message, timestamp: new Date() };
+    setMessages((prev) => [...prev, userMsg]);
+    setMessage("");
+    setIsTyping(true);
+    
+    // Create session on first message if we're in "new" mode
+    let activeSessionId = sessionId;
+    if (!sessionId || sessionId === "new") {
+      try {
+        const newId = await createChatSession();
+        setSessionId(newId);
+        activeSessionId = newId;
+        window.history.replaceState({}, "", `/therapy/${newId}`);
+        setRefreshSidebar(prev => prev + 1);
+      } catch (err) {
+        console.error("Failed to create session", err);
+        setMessages((prev) => [...prev, { role: "assistant", content: "Failed to start session. Please try again.", timestamp: new Date() }]);
+        setIsTyping(false);
+        return;
+      }
+    }
+    
+    try {
+      const response = await sendChatMessage(activeSessionId!, userMsg.content);
+      const parsed = typeof response === "string" ? JSON.parse(response) : response;
+
+      // Handle Cooldown
+      if (parsed.cooldown) {
+        setCooldown(parsed.cooldown);
+      }
+
+      setMessages((prev) => [...prev, {
+        role: "assistant",
+        content: parsed.response || parsed.message || "I'm listening.",
+        timestamp: new Date(),
+        metadata: {
+          analysis: parsed.analysis,
+          technique: parsed.metadata?.technique || "general_support",
+          goal: parsed.metadata?.goal || "support",
+          progress: parsed.metadata?.progress || [],
+          ...parsed.metadata
+        }
+      }]);
+      // FORCE SIDEBAR REFRESH: This ensures the 'New Session' name updates 
+      // to the first message content in the sidebar immediately.
+      setRefreshSidebar(prev => prev + 1);
+    } catch {
+      setMessages((prev) => [...prev, { role: "assistant", content: "I'm having trouble responding right now.", timestamp: new Date() }]);
+    } finally { setIsTyping(false); }
+  };
+
+  // Delete session handler
+  const handleDeleteSession = async (deleteSessionId: string) => {
+    try {
+      await deleteChatSessionApi(deleteSessionId);
+      // Remove from local state
+      setSessions(prev => prev.filter(s => s.sessionId !== deleteSessionId));
+      // If we deleted the current session, navigate to new chat
+      if (deleteSessionId === sessionId) {
+        setSessionId("new");
+        setMessages([]);
+        window.history.replaceState({}, "", `/therapy/new`);
+      }
+    } catch (err) {
+      console.error("Failed to delete session", err);
+    }
+  };
+
+  if (!mounted || isLoading) return null;
+
+  return (
+    <div className="flex h-[calc(100vh-4rem)] bg-background text-foreground overflow-hidden font-sans border-t border-border/10">
+      {/* Sidebar Desktop - Liquid Glass */}
+      <aside className="hidden lg:flex flex-col w-80 border-r border-border/10 shrink-0 bg-white/10 dark:bg-black/10 backdrop-blur-xl">
+        <SidebarContentComponent
+          sessions={sessions}
+          setSessionId={setSessionId}
+          currentSessionId={sessionId}
+          onCreateSession={() => {
+            setSessionId("new");
+            setMessages([]);
+            window.history.pushState({}, "", `/therapy/new`);
+          }}
+          onDeleteSession={handleDeleteSession}
+        />
+      </aside>
+
+      <main className="flex-1 flex flex-col relative min-w-0 bg-background/50">
+        {/* Background Gradients */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-purple-500/5 blur-[100px]" />
+          <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-blue-500/5 blur-[100px]" />
+        </div>
+
+        {/* Header - Transparent/Glass */}
+        <header className="flex items-center justify-between px-8 py-5 border-b border-border/10 bg-white/5 dark:bg-black/5 backdrop-blur-md z-20 shrink-0 sticky top-0">
+          <div className="flex items-center gap-3">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="lg:hidden h-10 w-10 text-muted-foreground hover:text-primary">
+                  <Menu className="w-6 h-6" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="p-0 w-80 z-[100] border-r-0 bg-transparent">
+                <div className="h-full bg-background/80 backdrop-blur-xl border-r border-border/10">
+                  <SidebarContentComponent
+                    sessions={sessions}
+                    setSessionId={setSessionId}
+                    currentSessionId={sessionId}
+                    onCreateSession={() => {
+                      setSessionId("new");
+                      setMessages([]);
+                      window.history.pushState({}, "", `/therapy/new`);
+                    }}
+                    onDeleteSession={handleDeleteSession}
+                  />
                 </div>
-            </div>
+              </SheetContent>
+            </Sheet>
+            <h1 className="text-lg font-semibold flex items-center gap-3 tracking-tight">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+              </span>
+              MindEase Assistant
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="hidden sm:flex text-[10px] border-primary/20 text-primary bg-primary/5 px-3 py-1 rounded-full uppercase tracking-wider font-semibold">Private</Badge>
+          </div>
+        </header>
 
+        {/* Scroll Area */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden scroll-smooth custom-scrollbar" onScroll={handleScroll}>
+          <div className="flex flex-col px-4 md:px-8 py-10 w-full max-w-4xl mx-auto min-h-full">
             {messages.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center p-4">
-                    <div className="max-w-2xl w-full space-y-8">
-                        <div className="text-center space-y-4">
-                            <div className="relative inline-flex flex-col items-center">
-                                <motion.div
-                                    className="absolute inset-0 bg-primary/20 blur-2xl rounded-full"
-                                    initial="initial"
-                                    animate="animate"
-                                    variants={glowAnimation as any}
-                                />
-                                <div className="relative flex items-center gap-2 text-2xl font-semibold">
-                                    <div className="relative">
-                                        <Sparkles className="w-6 h-6 text-primary" />
-                                        <motion.div
-                                            className="absolute inset-0 text-primary"
-                                            initial="initial"
-                                            animate="animate"
-                                            variants={glowAnimation as any}
-                                        >
-                                            <Sparkles className="w-6 h-6" />
-                                        </motion.div>
-                                    </div>
-                                    <span className="bg-gradient-to-r from-primary/90 to-primary bg-clip-text text-transparent">
-                                        AI Therapist
-                                    </span>
-                                </div>
-                                <p className="text-muted-foreground mt-2">
-                                    How can I assist you today?
-                                </p>
-                            </div>
-                        </div>
-                    </div>
+              <div className="flex flex-col items-center justify-center flex-1 py-20 opacity-40">
+                <div className="w-16 h-16 bg-gradient-to-tr from-primary/20 to-secondary/20 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                  <Sparkles size={32} className="text-primary" />
                 </div>
+                <h2 className="text-2xl font-bold tracking-tight text-foreground/80">How are you feeling today?</h2>
+                <p className="text-muted-foreground mt-2">I'm here to listen and help.</p>
+              </div>
             ) : (
-                <div className="flex-1 overflow-y-auto scroll-smooth">
-                    <div className="max-w-3xl mx-auto">
-                        <AnimatePresence initial={false}>
-                            {messages.map((msg) => (
-                                <motion.div
-                                    key={msg.timestamp.toISOString()}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.3 }}
-                                    className={cn(
-                                        "px-6 py-8",
-                                        msg.role === "assistant"
-                                            ? "bg-muted/30"
-                                            : "bg-background"
-                                    )}
+              messages.map((msg, idx) => {
+                const isUser = msg.role === "user";
+                const showTimestamp = idx === messages.length - 1 || idx % 2 === 0;
+
+                // Parse potential recommendation from metadata
+                const meta = msg.metadata as any;
+                const recommendation = meta?.recommendation || (msg.role === "assistant" && msg.content.includes("suggest") && msg.content.length < 150 ? {
+                  // Fallback logic
+                } : null);
+
+                return (
+                  <motion.article
+                    key={idx}
+                    initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className={cn("flex w-full mb-8 relative group", isUser ? "justify-end" : "justify-start")}
+                  >
+                    <div className={cn("flex gap-4 max-w-[85%] lg:max-w-[75%] items-end", isUser ? "flex-row-reverse" : "flex-row")}>
+                      {/* Avatar with Ring */}
+                      <div className={cn(
+                        "w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-sm mb-1 ring-2 ring-background transition-transform duration-300 group-hover:scale-105",
+                        isUser ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground" : "bg-gradient-to-br from-white to-gray-100 dark:from-gray-800 dark:to-gray-900 border border-white/10 text-primary"
+                      )}>
+                        {isUser ? <User size={16} /> : <Bot size={16} />}
+                      </div>
+
+                      <div className="flex flex-col gap-1.5 min-w-0">
+                        {/* Name & Time */}
+                        <div className={cn("flex items-center gap-2 text-[10px] text-muted-foreground px-1 uppercase tracking-wider font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300", isUser ? "justify-end" : "justify-start")}>
+                          <span>{isUser ? "You" : "Assistant"}</span>
+                          <span className="w-1 h-1 rounded-full bg-border"></span>
+                          <span>{formatDistanceToNow(new Date(msg.timestamp), { addSuffix: true })}</span>
+                        </div>
+
+                        {/* Liquid Bubble */}
+                        <div className={cn(
+                          "px-6 py-4 text-sm md:text-[15px] leading-relaxed relative shadow-lg backdrop-blur-md transition-all duration-300",
+                          isUser
+                            ? "bg-primary text-primary-foreground rounded-[24px] rounded-br-[4px] shadow-primary/20"
+                            : "bg-white/80 dark:bg-white/5 border border-white/20 dark:border-white/10 text-foreground rounded-[24px] rounded-bl-[4px] shadow-sm"
+                        )}>
+                          <div className="prose prose-sm dark:prose-invert max-w-none break-words">
+                            <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          </div>
+                        </div>
+
+                        {/* Recommendation Card Integration */}
+                        {msg.metadata?.analysis?.recommendedApproach?.includes("breathing") && (
+                          <RecommendationCard
+                            type="activity"
+                            title="Breathing Exercise"
+                            description="Take a moment to center yourself."
+                            link="/dashboard"
+                            actionLabel="Start Now"
+                          />
+                        )}
+
+                        {/* Crisis / SOS Alert */}
+                        {msg.metadata?.analysis?.isCrisis && (
+                          <div className="w-full max-w-md mt-4 mb-2 overflow-hidden rounded-xl border-2 border-red-500 bg-red-50 dark:bg-red-950/50 shadow-lg shadow-red-500/20">
+                            <div className="bg-red-500 px-4 py-2">
+                              <h4 className="font-bold text-white flex items-center gap-2">
+                                <Shield className="h-5 w-5" />
+                                Immediate Help Available
+                              </h4>
+                            </div>
+                            <div className="p-4 space-y-3">
+                              <p className="text-sm text-red-700 dark:text-red-300 leading-relaxed">
+                                You are not alone. If you&apos;re in crisis, please reach out to these mental health helplines:
+                              </p>
+                              <div className="space-y-2">
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm" 
+                                  className="w-full justify-start gap-2 h-10 bg-red-600 hover:bg-red-700" 
+                                  onClick={() => window.open("tel:14416")}
                                 >
-                                    <div className="flex gap-4">
-                                        <div className="w-8 h-8 shrink-0 mt-1">
-                                            {msg.role === "assistant" ? (
-                                                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center ring-1 ring-primary/20">
-                                                    <Bot className="w-5 h-5" />
-                                                </div>
-                                            ) : (
-                                                <div className="w-8 h-8 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center">
-                                                    <User className="w-5 h-5" />
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="flex-1 space-y-2 overflow-hidden min-h-[2rem]">
-                                            <div className="flex items-center justify-between">
-                                                <p className="font-medium text-sm">
-                                                    {msg.role === "assistant"
-                                                        ? "AI Therapist"
-                                                        : "You"}
-                                                </p>
-                                            </div>
-                                            <div className="prose prose-sm dark:prose-invert leading-relaxed">
-                                                <ReactMarkdown>{msg.content}</ReactMarkdown>
-                                            </div>
-                                            {msg.metadata?.goal && (
-                                                <p className="text-xs text-muted-foreground mt-2">
-                                                    Goal: {msg.metadata.goal}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            ))}
-                            
-                            {isTyping && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="px-6 py-8 flex gap-4 bg-muted/30"
+                                  <PhoneCall size={16} /> Tele-MANAS: 14416
+                                </Button>
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm" 
+                                  className="w-full justify-start gap-2 h-10 bg-red-600 hover:bg-red-700" 
+                                  onClick={() => window.open("tel:9152987821")}
                                 >
-                                    <div className="w-8 h-8 shrink-0">
-                                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center ring-1 ring-primary/20">
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                        </div>
-                                    </div>
-                                    <div className="flex-1 space-y-2">
-                                        <p className="font-medium text-sm">AI Therapist</p>
-                                        <p className="text-sm text-muted-foreground">Typing...</p>
-                                    </div>
-                                </motion.div>
-                            )}
-                            <div ref={messagesEndRef} />
-                        </AnimatePresence>
+                                  <PhoneCall size={16} /> iCall: 9152987821
+                                </Button>
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm" 
+                                  className="w-full justify-start gap-2 h-10 bg-red-600 hover:bg-red-700" 
+                                  onClick={() => window.open("tel:18005990019")}
+                                >
+                                  <PhoneCall size={16} /> Vandrevala Foundation: 1800-599-0019
+                                </Button>
+                              </div>
+                              <div className="pt-2 border-t border-red-200 dark:border-red-800">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="w-full justify-center gap-2 h-10 border-red-500 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 font-semibold" 
+                                  onClick={() => window.open("https://telemanas.mohfw.gov.in/", "_blank")}
+                                >
+                                  <ArrowRight size={16} /> Visit Tele-MANAS Website
+                                </Button>
+                              </div>
+                              <p className="text-xs text-red-600/70 dark:text-red-400/70 text-center">
+                                24/7 Free Mental Health Support
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {msg.role === "assistant" && (
+                          <div className="flex items-center gap-2 pt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleToggleSpeech(msg.content, idx)}
+                              className={cn("h-7 w-7 rounded-full hover:bg-muted/50 transition-colors", isSpeaking === idx && "text-primary bg-primary/10 opacity-100")}
+                              title="Listen"
+                            >
+                              {isSpeaking === idx ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                </div>
+                  </motion.article>
+                )
+              })
             )}
-            {/* form to submit chat */}
-            <div className="border-t bg-background/50 backdrop-blur supports-[backdrop-filter]:bg-background/50 p-4">
-            <form action=""
-            onSubmit={() => {}} className="max-w-3xl mx-auto flex gap-4 items-end relative">
-                <div className="flex-1 relative group">
-                    <textarea
+            {isTyping && (
+              <div className="flex gap-3 items-center ml-2 mb-8">
+                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border border-white/5">
+                  <Loader2 size={14} className="animate-spin text-muted-foreground" />
+                </div>
+                <span className="text-xs text-muted-foreground/60 font-medium tracking-wide">Thinking...</span>
+              </div>
+            )}
+            <div ref={messagesEndRef} className="h-24 shrink-0" />
+          </div>
+        </div>
+
+        {/* Floating Scroll Button */}
+        <AnimatePresence>
+          {showScrollButton && (
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="absolute bottom-32 left-0 right-0 flex justify-center z-30 pointer-events-none">
+              <Button size="sm" onClick={scrollToBottom} className="rounded-full shadow-xl pointer-events-auto bg-primary/90 text-primary-foreground hover:scale-105 transition-transform px-5 border border-white/10 backdrop-blur-md">
+                <ArrowDown className="w-4 h-4 mr-2" /> Recent Messages
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+
+
+        {/* Input Footer - Floating Glass Bar */}
+        <footer className="absolute bottom-0 left-0 right-0 p-4 md:p-6 bg-gradient-to-t from-background via-background/95 to-transparent z-20">
+          <div className="max-w-4xl mx-auto relative">
+            {/* Welcome Suggestions for New Chats */}
+            <AnimatePresence>
+              {messages.length === 0 && !isTyping && cooldown === 0 && (
+                <div className="flex flex-wrap gap-2 mb-4 justify-center">
+                  {welcomeSuggestions.map((suggestion, i) => (
+                    <motion.button
+                      key={i}
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ delay: i * 0.08 }}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="whitespace-nowrap px-4 py-2.5 bg-gradient-to-r from-primary/10 to-purple-500/10 hover:from-primary/20 hover:to-purple-500/20 text-primary text-xs md:text-sm font-medium rounded-full border border-primary/20 backdrop-blur-md transition-all shadow-sm hover:shadow-md hover:scale-105"
+                    >
+                      <Sparkles className="w-3 h-3 inline-block mr-1.5 opacity-70" />
+                      {suggestion}
+                    </motion.button>
+                  ))}
+                </div>
+              )}
+            </AnimatePresence>
+
+            {/* AI Suggestions Pills (after conversation) */}
+            <AnimatePresence>
+              {suggestions.length > 0 && !isTyping && cooldown === 0 && (
+                <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-none justify-center">
+                  {suggestions.map((suggestion, i) => (
+                    <motion.button
+                      key={i}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ delay: i * 0.1 }}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="whitespace-nowrap px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary text-xs md:text-sm font-medium rounded-full border border-primary/20 backdrop-blur-md transition-colors shadow-sm"
+                    >
+                      {suggestion}
+                    </motion.button>
+                  ))}
+                </div>
+              )}
+            </AnimatePresence>
+
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-[2.5rem] blur opacity-50 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
+              <div className="relative flex items-end gap-3 bg-card/60 backdrop-blur-xl border border-white/10 dark:border-white/5 rounded-[2rem] p-2 pl-6 shadow-2xl transition-all focus-within:ring-1 focus-within:ring-primary/20">
+                <textarea
+                  ref={textareaRef}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder={
-                    isChatPaused
-                      ? "Complete the activity to continue..."
-                      : "Ask me anything..."
-                  }
-
-                    className={cn(
-                    "w-full resize-none rounded-2xl border bg-background",
-                    "p-3 pr-12 min-h-[48px] max-h-[200px]",
-                    "focus:outline-none focus:ring-2 focus:ring-primary/50",
-                    "transition-all duration-200",
-                    "placeholder:text-muted-foreground/70",
-                    (isTyping || isChatPaused) &&
-                      "opacity-50 cursor-not-allowed"
-                  )}
+                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSubmit(e as any))}
+                  placeholder={cooldown > 0 ? `You can continue in ${cooldown} seconds` : "Type your message..."}
+                  disabled={cooldown > 0}
+                  className="flex-1 bg-transparent border-0 focus:ring-0 py-4 text-[15px] max-h-48 resize-none leading-relaxed placeholder:text-muted-foreground/40 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   rows={1}
-                  disabled={isTyping || isChatPaused}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                    //   handleSubmit(e);
-                    }
-                  }}
                 />
-                 <Button
+                <Button
                   type="submit"
                   size="icon"
-                  className={cn(
-                    "absolute right-1.5 bottom-3.5 h-[36px] w-[36px]",
-                    "rounded-xl transition-all duration-200",
-                    "bg-primary hover:bg-primary/90",
-                    "shadow-sm shadow-primary/20",
-                    (isTyping || isChatPaused || !message.trim()) &&
-                      "opacity-50 cursor-not-allowed",
-                    "group-hover:scale-105 group-focus-within:scale-105"
-                  )}
-                  disabled={isTyping || isChatPaused || !message.trim()}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    // handleSubmit(e);
-                  }}
+                  disabled={!message.trim() || isTyping || cooldown > 0}
+                  onClick={handleSubmit}
+                  className={cn("h-11 w-11 shrink-0 rounded-full transition-all duration-300 shadow-lg mb-0.5 mr-0.5", message.trim() && !cooldown ? "bg-primary text-primary-foreground hover:scale-105 hover:shadow-primary/25" : "bg-muted/50 text-muted-foreground hover:bg-muted/80")}
                 >
-                  <Send className="w-4 h-4" />
+                  {cooldown > 0 ? (
+                    <span className="text-[10px] font-bold">{cooldown}</span>
+                  ) : isTyping ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Send size={18} className={cn(message.trim() && "ml-0.5")} />
+                  )}
                 </Button>
-                    </div> 
-            </form>
+              </div>
             </div>
-        </div>
+            <p className="text-[10px] text-center text-muted-foreground/40 mt-3 font-medium tracking-wide">
+              <Shield className="w-3 h-3 inline-block mr-1 opacity-50" />
+              End-to-end encrypted • Private Session
+            </p>
+          </div>
+        </footer>
+      </main>
     </div>
-</div>
-    )
+  );
+}
+
+// Helper to redesign Sidebar
+function SidebarContentComponent({ 
+  sessions, 
+  setSessionId, 
+  currentSessionId, 
+  onCreateSession,
+  onDeleteSession 
+}: {
+  sessions: any[];
+  setSessionId: (id: string) => void;
+  currentSessionId: string | null;
+  onCreateSession: () => void;
+  onDeleteSession: (sessionId: string) => void;
+}) {
+  const [hoveredSession, setHoveredSession] = useState<string | null>(null);
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="p-5 pb-3 border-b border-border/10">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+              <MessageSquare className="w-4 h-4 text-primary" />
+            </div>
+            <span className="font-semibold text-sm">Conversations</span>
+          </div>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted/50 text-muted-foreground font-medium">
+            {sessions.length}
+          </span>
+        </div>
+        <Button 
+          variant="outline" 
+          className="w-full h-10 rounded-xl border-dashed border-primary/30 hover:border-primary/50 hover:bg-primary/5 text-primary font-medium gap-2 transition-all" 
+          onClick={onCreateSession}
+        >
+          <PlusCircle size={16} />
+          New Chat
+        </Button>
+      </div>
+
+      {/* Sessions List */}
+      <ScrollArea className="flex-1">
+        <div className="p-3 space-y-1.5">
+          {sessions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-muted/30 flex items-center justify-center mb-3">
+                <MessageSquare className="w-5 h-5 text-muted-foreground/50" />
+              </div>
+              <p className="text-sm text-muted-foreground/70 font-medium">No conversations yet</p>
+              <p className="text-xs text-muted-foreground/50 mt-1">Start a new chat to begin</p>
+            </div>
+          ) : (
+            sessions.map((s: any) => {
+              const isActive = s.sessionId === currentSessionId;
+              const isHovered = hoveredSession === s.sessionId;
+              const messagePreview = s.messages[0]?.content || "New conversation";
+              const truncatedPreview = messagePreview.length > 35 
+                ? messagePreview.substring(0, 35) + "..." 
+                : messagePreview;
+
+              return (
+                <div
+                  key={s.sessionId}
+                  onMouseEnter={() => setHoveredSession(s.sessionId)}
+                  onMouseLeave={() => setHoveredSession(null)}
+                  className={cn(
+                    "relative group rounded-xl transition-all duration-200 overflow-hidden",
+                    isActive
+                      ? "bg-primary/10 shadow-sm"
+                      : "hover:bg-muted/50"
+                  )}
+                >
+                  <div
+                    onClick={() => {
+                      setSessionId(s.sessionId);
+                      window.history.pushState({}, "", `/therapy/${s.sessionId}`);
+                    }}
+                    className="p-3 cursor-pointer"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={cn(
+                        "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+                        isActive ? "bg-primary/20" : "bg-muted/50"
+                      )}>
+                        <Bot className={cn("w-4 h-4", isActive ? "text-primary" : "text-muted-foreground")} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={cn(
+                          "text-sm font-medium truncate transition-colors",
+                          isActive ? "text-primary" : "text-foreground/80"
+                        )}>
+                          {truncatedPreview}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] text-muted-foreground/60">
+                            {formatDistanceToNow(new Date(s.updatedAt), { addSuffix: true })}
+                          </span>
+                          {s.messages.length > 0 && (
+                            <>
+                              <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                              <span className="text-[10px] text-muted-foreground/60">
+                                {s.messages.length} msg{s.messages.length !== 1 ? 's' : ''}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Delete Button - appears on hover */}
+                  <AnimatePresence>
+                    {(isHovered || isActive) && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute top-2 right-2"
+                      >
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 rounded-lg bg-background/80 hover:bg-destructive/10 hover:text-destructive backdrop-blur-sm shadow-sm border border-border/50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteSession(s.sessionId);
+                          }}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Active indicator */}
+                  {isActive && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-r-full" />
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </ScrollArea>
+
+      {/* Footer */}
+      <div className="p-4 border-t border-border/10">
+        <div className="flex items-center gap-2 text-[10px] text-muted-foreground/50 justify-center">
+          <Shield className="w-3 h-3" />
+          <span>Private & Secure</span>
+        </div>
+      </div>
+    </div>
+  )
 }
