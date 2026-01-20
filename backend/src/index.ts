@@ -24,9 +24,30 @@ dotenv.config();
 // Create Express app
 const app = express();
 
+// Allowed origins for CORS
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:3001",
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
 // Middleware
 app.use(helmet()); // Security headers
-app.use(cors()); // Enable CORS
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      // In production, you might want to be stricter
+      console.warn(`CORS: Origin ${origin} not in allowed list`);
+      callback(null, true); // Allow anyway for now, or change to callback(new Error('Not allowed by CORS'))
+    }
+  },
+  credentials: true,
+}));
 app.use(express.json()); // Parse JSON bodies
 app.use(morgan("dev")); // HTTP request logger
 
