@@ -25,9 +25,10 @@ import {
   Moon
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ReviewPrompt } from "@/components/review/review-prompt";
 
 export function Header() {
-  const { user, loading, isAuthenticated, logout } = useSession();
+  const { user, loading, isAuthenticated, initiateLogout, completeLogout, showReviewPrompt } = useSession();
   const { setTheme, resolvedTheme } = useTheme(); // Use resolvedTheme for accurate toggle
   const router = useRouter();
   const pathname = usePathname();
@@ -143,7 +144,7 @@ export function Header() {
 
                     <DropdownMenuSeparator className="bg-primary/10" />
 
-                    <DropdownMenuItem className="flex items-center gap-2 cursor-pointer p-2 rounded-lg text-red-500 focus:bg-red-500/10 focus:text-red-500" onClick={logout}>
+                    <DropdownMenuItem className="flex items-center gap-2 cursor-pointer p-2 rounded-lg text-red-500 focus:bg-red-500/10 focus:text-red-500" onClick={initiateLogout}>
                       <LogOut className="w-4 h-4" /> Logout
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -162,6 +163,12 @@ export function Header() {
           )}
         </div>
       </div>
+
+      {/* Review Prompt Modal */}
+      <ReviewPrompt 
+        isOpen={showReviewPrompt} 
+        onComplete={completeLogout} 
+      />
     </nav>
   );
 }

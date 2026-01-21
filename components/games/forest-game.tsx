@@ -1,73 +1,71 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { TreePine, Volume2, VolumeX, Play, Pause } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Progress } from "@/components/ui/progress";
 
-const MEDITATION_DURATION = 5 * 60; // 5 minutes in seconds
-
 export function ForestGame() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(50);
   const [progress, setProgress] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(MEDITATION_DURATION);
-  const [audioElements] = useState({
-    birds: new Audio("/sounds/birds.mp3"),
-    wind: new Audio("/sounds/wind.mp3"),
-    leaves: new Audio("/sounds/leaves.mp3"),
-  });
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Set up audio loops
-    Object.values(audioElements).forEach((audio) => {
-      audio.loop = true;
-      audio.volume = volume / 100;
-    });
+    const audio = new Audio("/music/forest.mp3");
+    audioRef.current = audio;
+    audio.volume = volume / 100;
+
+    const handleLoadedMetadata = () => {
+      setDuration(Math.floor(audio.duration));
+    };
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(Math.floor(audio.currentTime));
+      if (audio.duration > 0) {
+        setProgress((audio.currentTime / audio.duration) * 100);
+      }
+    };
+
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setProgress(100);
+    };
+
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('ended', handleEnded);
 
     return () => {
-      // Cleanup audio on unmount
-      Object.values(audioElements).forEach((audio) => {
-        audio.pause();
-        audio.currentTime = 0;
-      });
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('ended', handleEnded);
+      audio.pause();
+      audio.currentTime = 0;
     };
   }, []);
 
   useEffect(() => {
-    Object.values(audioElements).forEach((audio) => {
-      audio.volume = volume / 100;
-    });
+    if (audioRef.current) {
+      audioRef.current.volume = volume / 100;
+    }
   }, [volume]);
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-
-    if (isPlaying && timeLeft > 0) {
-      timer = setInterval(() => {
-        setTimeLeft((prev) => {
-          const newTime = prev - 1;
-          setProgress(
-            ((MEDITATION_DURATION - newTime) / MEDITATION_DURATION) * 100
-          );
-          return newTime;
-        });
-      }, 1000);
-    }
-
-    return () => clearInterval(timer);
-  }, [isPlaying, timeLeft]);
-
   const togglePlay = () => {
+    if (!audioRef.current) return;
     if (isPlaying) {
-      Object.values(audioElements).forEach((audio) => audio.pause());
+      audioRef.current.pause();
     } else {
-      Object.values(audioElements).forEach((audio) => audio.play());
+      audioRef.current.play();
     }
     setIsPlaying(!isPlaying);
   };
+
+  const timeLeft = duration - currentTime;
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -137,7 +135,7 @@ export function ForestGame() {
             )}
           </Button>
           <span className="text-sm text-muted-foreground">
-            {formatTime(MEDITATION_DURATION)}
+            {formatTime(duration)}
           </span>
         </div>
       </div>

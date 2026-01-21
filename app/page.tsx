@@ -31,6 +31,22 @@ import {
 import React from "react";
 import { Ripple } from "@/components/ui/ripple";
 import { EcosystemSection } from "@/components/landing/ecosystem-section";
+import { TestimonialsSection } from "@/components/landing/testimonials-section";
+
+// 1. IMPORT BETTER FONTS
+import { Plus_Jakarta_Sans, Inter } from "next/font/google";
+
+const jakarta = Plus_Jakarta_Sans({ 
+  subsets: ["latin"], 
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-jakarta",
+});
+
+const inter = Inter({ 
+  subsets: ["latin"], 
+  weight: ["400", "500", "600"],
+  variable: "--font-inter",
+});
 
 export default function Home() {
   const emotions = [
@@ -74,46 +90,14 @@ export default function Home() {
   const currentEmotion =
     emotions.find((em) => Math.abs(emotion - em.value) < 15) || emotions[2];
 
-  const features = [
-    {
-      icon: HeartPulse,
-      title: "24/7 Support",
-      description: "Always here to listen and support you, any time of day",
-      color: "from-rose-500/20",
-      delay: 0.2,
-    },
-    {
-      icon: Lightbulb,
-      title: "Smart Insights",
-      description: "Personalized guidance powered by emotional intelligence",
-      color: "from-amber-500/20",
-      delay: 0.4,
-    },
-    {
-      icon: Lock,
-      title: "Private & Secure",
-      description: "Your conversations are always confidential and encrypted",
-      color: "from-emerald-500/20",
-      delay: 0.6,
-    },
-    {
-      icon: MessageSquareHeart,
-      title: "Evidence-Based",
-      description: "Therapeutic techniques backed by clinical research",
-      color: "from-blue-500/20",
-      delay: 0.8,
-    },
-  ];
-
-
   const steps = [
     {
       number: 1,
       icon: UserPlus,
       title: 'Create Your Account',
       description: 'Sign up for free in seconds. No credit card required, just your commitment to wellness.',
-      numberBg: 'bg-gradient-to-br from-primary to-secondary', // FIX: Theme color
-      iconColors: 'text-primary border-primary/20', // FIX: Theme color
+      numberBg: 'bg-gradient-to-br from-primary to-secondary',
+      iconColors: 'text-primary border-primary/20',
       delay: 0.1,
     },
     {
@@ -121,8 +105,8 @@ export default function Home() {
       icon: Edit,
       title: 'Choose Your Tools',
       description: 'Select from chatbot, mood tracking, music, games, and more based on your needs.',
-      numberBg: 'bg-gradient-to-br from-secondary to-primary', // FIX: Theme color
-      iconColors: 'text-secondary border-secondary/20', // FIX: Theme color
+      numberBg: 'bg-gradient-to-br from-secondary to-primary',
+      iconColors: 'text-secondary border-secondary/20',
       delay: 0.2,
     },
     {
@@ -130,44 +114,46 @@ export default function Home() {
       icon: CheckCircle,
       title: 'Start Your Journey',
       description: 'Begin using the tools and track your progress. Get support whenever you need it.',
-      numberBg: 'bg-gradient-to-br from-primary/90 to-primary', // FIX: Theme color
-      iconColors: 'text-primary border-primary/20', // FIX: Theme color
+      numberBg: 'bg-gradient-to-br from-primary/90 to-primary',
+      iconColors: 'text-primary border-primary/20',
       delay: 0.3,
     },
   ];
 
   return (
-    <div className="flex flex-col min-h-screen overflow-hidden">
+    // APPLY FONTS GLOBALLY HERE
+    <div className={`flex flex-col min-h-screen overflow-hidden ${jakarta.variable} ${inter.variable} font-sans`}>
+      
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] mt-20 flex flex-col items-center justify-center py-12 px-4">
-        {/* Enhanced background elements */}
+      <section className="relative min-h-[92vh] mt-20 flex flex-col items-center justify-center py-20 px-6">
+        {/* Background elements */}
         <div className="absolute inset-0 -z-10 overflow-hidden">
           <div
-            className={`absolute w-[500px] h-[500px] rounded-full blur-3xl top-0 -left-20 transition-all duration-700 ease-in-out
+            className={`absolute w-[600px] h-[600px] rounded-full blur-3xl top-0 -left-20 transition-all duration-700 ease-in-out
             bg-gradient-to-r ${currentEmotion.color} to-transparent opacity-60`}
           />
-          <div className="absolute w-[400px] h-[400px] rounded-full bg-secondary/10 blur-3xl bottom-0 right-0 animate-pulse delay-700" />
+          <div className="absolute w-[500px] h-[500px] rounded-full bg-secondary/10 blur-3xl bottom-0 right-0 animate-pulse delay-700" />
           <div className="absolute inset-0 bg-background/80 backdrop-blur-3xl" />
         </div>
         <Ripple className="opacity-60" />
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: mounted ? 1 : 0, y: mounted ? 0 : 20 }}
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: mounted ? 1 : 0, y: mounted ? 0 : 30 }}
           transition={{ duration: 1, ease: "easeOut" }}
-          className="relative space-y-8 text-center"
+          className="relative space-y-10 text-center max-w-5xl mx-auto"
         >
-          {/* Enhanced badge with subtle animation */}
-          <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm border border-primary/20 bg-primary/5 backdrop-blur-sm hover:border-primary/40 transition-all duration-300">
-            <Waves className="w-4 h-4 animate-wave text-primary" />
-            <span className="relative text-foreground/90 dark:text-foreground after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-full after:h-[1px] after:bg-primary/30 after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300">
+          {/* Badge: Larger text and padding */}
+          <div className="inline-flex items-center gap-3 rounded-full px-6 py-2.5 text-base font-medium border border-primary/20 bg-primary/5 backdrop-blur-sm hover:border-primary/40 transition-all duration-300">
+            <Waves className="w-5 h-5 animate-wave text-primary" />
+            <span className="relative text-foreground/90 dark:text-foreground">
               Your AI Agent Mental Health Companion
             </span>
           </div>
 
-          {/* Enhanced main heading with smoother gradient */}
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold font-plus-jakarta tracking-tight">
-            <span className="inline-block bg-gradient-to-r from-primary via-primary/90 to-secondary bg-clip-text text-transparent [text-shadow:_0_1px_0_rgb(0_0_0_/_20%)] hover:to-primary transition-all duration-300">
+          {/* Heading: Much bigger (Text-5xl mobile, Text-8xl desktop) */}
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-extrabold font-heading tracking-tight leading-[1.1]">
+            <span className="inline-block bg-gradient-to-r from-primary via-primary/90 to-secondary bg-clip-text text-transparent pb-2">
               Find Peace
             </span>
             <br />
@@ -176,37 +162,37 @@ export default function Home() {
             </span>
           </h1>
 
-          {/* Enhanced description with better readability */}
-          <p className="max-w-[600px] mx-auto text-base md:text-lg text-muted-foreground leading-relaxed tracking-wide">
+          {/* Description: Larger text (text-xl) and wider container */}
+          <p className="max-w-2xl mx-auto text-xl md:text-2xl text-muted-foreground leading-relaxed font-light">
             Experience a new way of emotional support. Our AI companion is here
             to listen, understand, and guide you through life's journey.
           </p>
 
-          {/* Emotion slider section with enhanced transitions */}
+          {/* Emotion Slider: Larger interaction area */}
           <motion.div
-            className="w-full max-w-[600px] mx-auto space-y-6 py-8"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: mounted ? 1 : 0, y: mounted ? 0 : 20 }}
+            className="w-full max-w-3xl mx-auto space-y-8 py-10"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: mounted ? 1 : 0, y: mounted ? 0 : 30 }}
             transition={{ delay: 0.3, duration: 0.8 }}
           >
-            <div className="space-y-2 text-center">
-              <p className="text-sm text-muted-foreground/80 font-medium">
+            <div className="space-y-4 text-center">
+              <p className="text-lg text-muted-foreground/80 font-medium">
                 Whatever you're feeling, we're here to listen
               </p>
-              <div className="flex justify-between items-center px-2">
+              <div className="flex justify-between items-center px-2 md:px-4">
                 {emotions.map((em) => (
                   <div
                     key={em.value}
-                    className={`transition-all duration-500 ease-out cursor-pointer hover:scale-105 ${Math.abs(emotion - em.value) < 15
+                    className={`transition-all duration-500 ease-out cursor-pointer hover:scale-105 p-2 ${Math.abs(emotion - em.value) < 15
                       ? "opacity-100 scale-110 transform-gpu"
                       : "opacity-50 scale-100"
                       }`}
                     onClick={() => setEmotion(em.value)}
                   >
-                    <div className="text-2xl transform-gpu">
+                    <div className="text-4xl md:text-5xl transform-gpu mb-2">
                       {em.label.split(" ")[0]}
                     </div>
-                    <div className="text-xs text-muted-foreground mt-1 font-medium">
+                    <div className="text-sm md:text-base text-muted-foreground font-semibold hidden sm:block">
                       {em.label.split(" ")[1]}
                     </div>
                   </div>
@@ -214,10 +200,9 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Enhanced slider with dynamic gradient */}
-            <div className="relative px-2">
+            <div className="relative px-4">
               <div
-                className={`absolute inset-0 bg-gradient-to-r ${currentEmotion.color} to-transparent blur-2xl -z-10 transition-all duration-500`}
+                className={`absolute inset-0 bg-gradient-to-r ${currentEmotion.color} to-transparent blur-3xl -z-10 transition-all duration-500`}
               />
               <Slider
                 value={[emotion]}
@@ -225,208 +210,153 @@ export default function Home() {
                 min={0}
                 max={100}
                 step={1}
-                className="py-4"
+                className="py-6 cursor-pointer"
               />
-            </div>
-
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground animate-pulse">
-                Slide to express how you're feeling today
-              </p>
             </div>
           </motion.div>
 
-          {/* Enhanced CTA button and welcome dialog */}
+          {/* CTA Button: Bigger height (h-14) and text */}
           <motion.div
-            className="flex flex-col sm:flex-row gap-4 justify-center items-center"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: mounted ? 1 : 0, y: mounted ? 0 : 20 }}
+            className="flex flex-col sm:flex-row gap-6 justify-center items-center"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: mounted ? 1 : 0, y: mounted ? 0 : 30 }}
             transition={{ delay: 0.2, duration: 0.8 }}
           >
             <Button
               size="lg"
               onClick={() => setShowDialog(true)}
-              className="relative group h-12 px-8 rounded-full bg-gradient-to-r from-primary via-primary/90 to-secondary hover:to-primary shadow-lg shadow-primary/20 transition-all duration-500 hover:shadow-xl hover:shadow-primary/30"
+              className="relative group h-16 px-10 rounded-full bg-gradient-to-r from-primary via-primary/90 to-secondary hover:to-primary shadow-xl shadow-primary/20 transition-all duration-500 hover:shadow-2xl hover:shadow-primary/30"
             >
-              <span className="relative z-10 font-medium flex items-center gap-2">
+              <span className="relative z-10 text-xl font-bold flex items-center gap-3">
                 Begin Your Journey
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+                <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform duration-300" />
               </span>
               <div className="absolute inset-0 rounded-full bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-size-200 bg-pos-0 group-hover:bg-pos-100" />
             </Button>
           </motion.div>
         </motion.div>
-
-        {/* Enhanced scroll indicator */}
-        <motion.div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1, duration: 0.8 }}
-        >
-          <div className="w-6 h-10 rounded-full border-2 border-primary/20 flex items-start justify-center p-1 hover:border-primary/40 transition-colors duration-300">
-            <div className="w-1 h-2 rounded-full bg-primary animate-scroll" />
-          </div>
-        </motion.div>
       </section>
 
-      {/* Ecosystem Section - Replaces Features Grid */}
+      {/* Ecosystem Section */}
       <EcosystemSection />
 
-      {/* How It Works Section - FULLY THEMED */}
+      {/* How It Works Section */}
       <section
         id="how-it-works"
-        // FIX: Background uses theme background
-        className="bg-gradient-to-b from-background/50 to-background relative py-20 md:py-32 overflow-hidden"
+        className="bg-gradient-to-b from-background/50 to-background relative py-24 md:py-40 overflow-hidden"
       >
-
         {/* Background decoration */}
-        <div
-          // FIX: Uses primary theme color
-          className="absolute top-1/4 left-0 w-[300px] h-[300px] rounded-full blur-[100px] bg-primary/10 opacity-50"
-        ></div>
-        <div
-          // FIX: Uses secondary theme color
-          className="absolute bottom-1/4 right-0 w-[350px] h-[350px] rounded-full blur-[100px] bg-secondary/10 opacity-50"
-        ></div>
+        <div className="absolute top-1/4 left-0 w-[400px] h-[400px] rounded-full blur-[120px] bg-primary/10 opacity-50"></div>
+        <div className="absolute bottom-1/4 right-0 w-[450px] h-[450px] rounded-full blur-[120px] bg-secondary/10 opacity-50"></div>
 
         <div className="max-w-7xl mx-auto px-6 md:px-8 relative z-10">
 
-          {/* Section Header */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
-            className="text-center mb-16 md:mb-20"
+            className="text-center mb-20 md:mb-28"
           >
-            <div
-              // FIX: Uses card background and primary border/text
-              className="inline-flex items-center gap-2 border px-4 py-2 rounded-full mb-6 shadow-sm bg-card border-primary/20"
-            >
-              <Clock className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-primary/90">
+            <div className="inline-flex items-center gap-2 border px-6 py-2.5 rounded-full mb-8 shadow-sm bg-card border-primary/20">
+              <Clock className="w-5 h-5 text-primary" />
+              <span className="text-base font-semibold text-primary/90">
                 Simple & Effective
               </span>
             </div>
 
-            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
+            <h2 className="text-5xl md:text-6xl font-extrabold text-foreground mb-8 font-heading">
               How
-              <span
-                // FIX: Uses primary/secondary gradient
-                className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/90 to-secondary"
-              >
-                {' MindEase Works'}
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/90 to-secondary ml-3">
+                MindEase Works
               </span>
             </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
               Get started with mental wellness support in three simple steps
             </p>
           </motion.div>
 
-          {/* Steps */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 relative">
-
-            {/* Connecting Lines (Desktop) */}
-            <div
-              // FIX: Line uses primary/secondary gradient
-              className="hidden md:block absolute top-20 left-0 right-0 h-0.5 bg-gradient-to-r from-primary/30 via-secondary/30 to-primary/30"
-            ></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
+            <div className="hidden md:block absolute top-24 left-0 right-0 h-1 bg-gradient-to-r from-primary/30 via-secondary/30 to-primary/30 rounded-full"></div>
 
             {steps.map((step) => (
               <motion.div
                 key={step.number}
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 40 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: step.delay }}
                 viewport={{ once: true }}
-                className="relative"
+                className="relative group"
               >
-                <div className="flex flex-col items-center text-center">
-
-                  {/* Number Badge (uses step.numberBg) */}
-                  <div
-                    className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-lg relative z-10 ${step.numberBg}`}
-                  >
-                    <span className="text-2xl font-bold text-white">{step.number}</span>
+                <div className="flex flex-col items-center text-center p-6 rounded-3xl transition-colors duration-300 hover:bg-card/30">
+                  {/* Number Badge */}
+                  <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mb-8 shadow-xl relative z-10 ${step.numberBg} group-hover:scale-110 transition-transform duration-300`}>
+                    <span className="text-3xl font-bold text-white">{step.number}</span>
                   </div>
 
-                  {/* Icon (uses step.iconColors) */}
-                  <div
-                    // FIX: Uses card background
-                    className={`w-20 h-20 bg-card border-2 rounded-2xl flex items-center justify-center mb-6 shadow-md ${step.iconColors}`}
-                  >
-                    {/* Dynamically render icon component */}
-                    {React.createElement(step.icon, { className: 'w-10 h-10' })}
+                  {/* Icon */}
+                  <div className={`w-24 h-24 bg-card border-2 rounded-3xl flex items-center justify-center mb-8 shadow-lg ${step.iconColors}`}>
+                    {React.createElement(step.icon, { className: 'w-12 h-12' })}
                   </div>
 
-                  <h3 className="text-xl font-bold text-foreground mb-3">{step.title}</h3>
-                  <p className="text-muted-foreground leading-relaxed">
+                  <h3 className="text-2xl font-bold text-foreground mb-4 font-heading">{step.title}</h3>
+                  <p className="text-lg text-muted-foreground leading-relaxed">
                     {step.description}
                   </p>
                 </div>
               </motion.div>
             ))}
           </div>
+        </div>
+      </section>
 
-          {/* CTA Section */}
+      {/* Testimonials */}
+      <TestimonialsSection />
+
+      {/* CTA Section */}
+      <section className="py-32 px-6">
+        <div className="max-w-7xl mx-auto">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4 }}
             viewport={{ once: true }}
-            className="mt-16 md:mt-20 text-center"
+            className="text-center"
           >
-            <div
-              // FIX: Uses card background and primary border
-              className="border rounded-3xl p-8 md:p-12 shadow-xl max-w-4xl mx-auto bg-gradient-to-br from-card to-card/50 border-primary/10"
-            >
-              <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-4">
+            <div className="border rounded-[2.5rem] p-12 md:p-20 shadow-2xl max-w-5xl mx-auto bg-gradient-to-br from-card to-card/50 border-primary/10 relative overflow-hidden">
+               {/* Decorative blobs */}
+               <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+               <div className="absolute bottom-0 left-0 w-64 h-64 bg-secondary/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
+               
+              <h3 className="relative z-10 text-3xl md:text-5xl font-bold text-foreground mb-6 font-heading">
                 Ready to prioritize your mental wellness?
               </h3>
-              <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
+              <p className="relative z-10 text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto leading-relaxed">
                 Join thousands of users who are taking control of their emotional well-being with MindEase.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                {/* Primary Button */}
-                <Link
-                  href="/signup"
-                  passHref
-                  legacyBehavior // Recommended when wrapping a custom inner element like <button>
-                >
-                  <button
-                    // FIX: Matches your Hero CTA button colors
-                    className="text-white px-10 py-4 rounded-full text-base font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2 bg-gradient-to-r from-primary via-primary/90 to-secondary hover:to-primary shadow-primary/20 hover:shadow-primary/30"
-                  >
+              
+              <div className="relative z-10 flex flex-col sm:flex-row gap-6 justify-center">
+                <Link href="/signup" passHref legacyBehavior>
+                  <button className="text-white px-12 py-5 rounded-full text-lg font-bold shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-3 bg-gradient-to-r from-primary via-primary/90 to-secondary hover:to-primary shadow-primary/25">
                     Get Started for Free
-                    <ArrowRight className="w-5 h-5" strokeWidth={2.5} />
+                    <ArrowRight className="w-6 h-6" strokeWidth={3} />
                   </button>
                 </Link>
 
-
-                {/* Secondary Button: WRAPPED WITH LINK */}
-                <Link
-                  href="/learn-more" // <--- TARGET ROUTE FOR YOUR FAQ PAGE
-                  passHref
-                >
-                  <button
-                    // FIX: Matches your standard outline style
-                    className="bg-card border-2 px-10 py-4 rounded-full text-base font-semibold shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 border-primary/20 text-primary hover:border-primary/40"
-                  >
+                <Link href="/learn-more" passHref>
+                  <button className="bg-card/80 backdrop-blur-sm border-2 px-12 py-5 rounded-full text-lg font-bold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 border-primary/20 text-primary hover:border-primary/40">
                     Learn More
                   </button>
                 </Link>
               </div>
             </div>
           </motion.div>
-
         </div>
       </section>
 
-
-      {/* Dialog (Your Original Code) */}
+      {/* Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="sm:max-w-[425px] bg-card/80 backdrop-blur-lg">
+        <DialogContent className="sm:max-w-[500px] p-8 bg-card/95 backdrop-blur-xl border-primary/10">
           <DialogHeader>
             <motion.div
               key={currentStep}
@@ -434,31 +364,31 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
-              className="space-y-4"
+              className="space-y-6 pt-4"
             >
-              <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <div className="mx-auto w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
                 {welcomeSteps[currentStep] && (
                   <div>
                     {React.createElement(welcomeSteps[currentStep].icon, {
-                      className: "w-8 h-8 text-primary",
+                      className: "w-10 h-10 text-primary",
                     })}
                   </div>
                 )}
               </div>
-              <DialogTitle className="text-2xl text-center">
+              <DialogTitle className="text-3xl text-center font-heading font-bold">
                 {welcomeSteps[currentStep]?.title}
               </DialogTitle>
-              <DialogDescription className="text-center text-base leading-relaxed">
+              <DialogDescription className="text-center text-lg leading-relaxed text-muted-foreground">
                 {welcomeSteps[currentStep]?.description}
               </DialogDescription>
             </motion.div>
           </DialogHeader>
-          <div className="flex justify-between items-center mt-8">
-            <div className="flex gap-2">
+          <div className="flex justify-between items-center mt-10">
+            <div className="flex gap-3">
               {welcomeSteps.map((_, index) => (
                 <div
                   key={index}
-                  className={`w-2 h-2 rounded-full transition-all duration-300 ${index === currentStep ? "bg-primary w-4" : "bg-primary/20"
+                  className={`h-2.5 rounded-full transition-all duration-300 ${index === currentStep ? "bg-primary w-8" : "bg-primary/20 w-2.5"
                     }`}
                 />
               ))}
@@ -470,21 +400,20 @@ export default function Home() {
                 } else {
                   setShowDialog(false);
                   setCurrentStep(0);
-                  // Here you would navigate to the chat interface
                 }
               }}
-              className="relative group px-6"
+              className="relative group px-8 h-12 text-lg rounded-full"
             >
               <span className="flex items-center gap-2">
                 {currentStep === welcomeSteps.length - 1 ? (
                   <>
                     Let's Begin
-                    <Sparkles className="w-4 h-4 animate-pulse" />
+                    <Sparkles className="w-5 h-5 animate-pulse" />
                   </>
                 ) : (
                   <>
                     Next
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
                   </>
                 )}
               </span>
@@ -493,7 +422,5 @@ export default function Home() {
         </DialogContent>
       </Dialog>
     </div>
-
-
   );
 }

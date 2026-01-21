@@ -25,6 +25,7 @@ export interface IUser extends Document {
     lastActiveDate: Date | null;
     totalActiveDays: number;
   };
+  lastReviewPromptDate: Date | null;
 }
 
 const UserSchema = new Schema<IUser>(
@@ -51,6 +52,7 @@ const UserSchema = new Schema<IUser>(
       lastActiveDate: { type: Date, default: null },
       totalActiveDays: { type: Number, default: 0 },
     },
+    lastReviewPromptDate: { type: Date, default: null },
   },
   { timestamps: true }
 );

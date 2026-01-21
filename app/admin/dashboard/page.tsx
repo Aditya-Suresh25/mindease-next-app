@@ -19,14 +19,15 @@ import {
   BarChart3,
   Clock,
   Loader2,
-  ChevronRight,
-  History
+  History,
+  MessageSquareHeart,
+  Menu,
+  X,
 } from "lucide-react";
 import {
   getDashboardStats,
   getMoodTrends,
   getActivityStats,
-  getChatStats,
   getUsers,
   getAdminLogs,
 } from "@/lib/api/admin";
@@ -84,6 +85,7 @@ export default function AdminDashboardPage() {
   const [adminLogs, setAdminLogs] = useState<AdminLogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "users" | "analytics" | "logs">("overview");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -167,7 +169,7 @@ export default function AdminDashboardPage() {
       change: "Total sessions",
     },
     {
-      title: "Reports Generated",
+      title: "Reports",
       value: stats?.totalReports || 0,
       icon: FileText,
       color: "from-amber-500 to-orange-500",
@@ -176,23 +178,31 @@ export default function AdminDashboardPage() {
     },
   ];
 
+  const navTabs = [
+    { id: "overview", label: "Overview", icon: BarChart3 },
+    { id: "users", label: "Users", icon: Users },
+    { id: "analytics", label: "Analytics", icon: TrendingUp },
+    { id: "logs", label: "Logs", icon: History },
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                <Shield className="w-5 h-5 text-white" />
+          <div className="flex items-center justify-between h-14 sm:h-16">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shrink-0">
+                <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
-              <div>
-                <h1 className="text-lg font-bold text-white">MindEase Admin</h1>
-                <p className="text-xs text-slate-400">Dashboard</p>
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-lg font-bold text-white truncate">MindEase Admin</h1>
+                <p className="text-[10px] sm:text-xs text-slate-400 hidden sm:block">Dashboard</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            {/* Desktop Actions */}
+            <div className="hidden md:flex items-center gap-4">
               <Button
                 variant="ghost"
                 size="sm"
@@ -205,7 +215,7 @@ export default function AdminDashboardPage() {
               </Button>
 
               <div className="flex items-center gap-3 pl-4 border-l border-slate-700">
-                <div className="text-right">
+                <div className="text-right hidden lg:block">
                   <p className="text-sm font-medium text-white">{admin?.name}</p>
                   <p className="text-xs text-slate-400">{admin?.email}</p>
                 </div>
@@ -219,48 +229,100 @@ export default function AdminDashboardPage() {
                 </Button>
               </div>
             </div>
+
+            {/* Mobile Menu Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="md:hidden text-slate-400"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </Button>
           </div>
+
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="md:hidden py-3 border-t border-slate-700/50"
+            >
+              <div className="flex items-center justify-between mb-3 px-1">
+                <div>
+                  <p className="text-sm font-medium text-white">{admin?.name}</p>
+                  <p className="text-xs text-slate-400">{admin?.email}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={logout}
+                  className="text-red-400 hover:bg-red-500/10"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </Button>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  fetchDashboardData();
+                  setMobileMenuOpen(false);
+                }}
+                disabled={isLoading}
+                className="w-full border-white/10 text-slate-300"
+              >
+                <RefreshCw className={cn("w-4 h-4 mr-2", isLoading && "animate-spin")} />
+                Refresh Data
+              </Button>
+            </motion.div>
+          )}
         </div>
       </header>
 
       {/* Navigation Tabs */}
-      <div className="border-b border-slate-700/50 bg-slate-800/30">
+      <div className="border-b border-slate-700/50 bg-slate-800/30 sticky top-14 sm:top-16 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex gap-1">
-            {[
-              { id: "overview", label: "Overview", icon: BarChart3 },
-              { id: "users", label: "Users", icon: Users },
-              { id: "analytics", label: "Analytics", icon: TrendingUp },
-              { id: "logs", label: "Activity Logs", icon: History },
-            ].map((tab) => (
+          <nav className="flex gap-1 overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
+            {navTabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as typeof activeTab)}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all",
+                  "flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-all whitespace-nowrap shrink-0",
                   activeTab === tab.id
                     ? "border-blue-500 text-blue-400"
                     : "border-transparent text-slate-400 hover:text-white hover:border-slate-600"
                 )}
               >
-                <tab.icon className="w-4 h-4" />
+                <tab.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 {tab.label}
               </button>
             ))}
+            {/* Reviews Moderation Link */}
+            <button
+              onClick={() => router.push("/admin/reviews")}
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-white hover:border-slate-600 transition-all whitespace-nowrap shrink-0"
+            >
+              <MessageSquareHeart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              Reviews
+            </button>
           </nav>
         </div>
       </div>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         {activeTab === "overview" && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-8"
+            className="space-y-6 sm:space-y-8"
           >
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
               {statCards.map((stat, idx) => (
                 <motion.div
                   key={stat.title}
@@ -270,79 +332,79 @@ export default function AdminDashboardPage() {
                   className="relative group"
                 >
                   <div className={cn(
-                    "absolute inset-0 rounded-2xl opacity-50 group-hover:opacity-70 transition-opacity",
+                    "absolute inset-0 rounded-xl sm:rounded-2xl opacity-50 group-hover:opacity-70 transition-opacity",
                     stat.bgColor
                   )} />
-                  <div className="relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-5">
-                    <div className="flex items-start justify-between mb-3">
+                  <div className="relative bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-5">
+                    <div className="flex items-start justify-between mb-2 sm:mb-3">
                       <div className={cn(
-                        "w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br",
+                        "w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center bg-gradient-to-br shrink-0",
                         stat.color
                       )}>
-                        <stat.icon className="w-5 h-5 text-white" />
+                        <stat.icon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                       </div>
                     </div>
-                    <h3 className="text-2xl font-bold text-white mb-1">
+                    <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-0.5 sm:mb-1">
                       {isLoading ? "—" : stat.value.toLocaleString()}
                     </h3>
-                    <p className="text-sm text-slate-400">{stat.title}</p>
-                    <p className="text-xs text-slate-500 mt-1">{stat.change}</p>
+                    <p className="text-xs sm:text-sm text-slate-400 truncate">{stat.title}</p>
+                    <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 truncate">{stat.change}</p>
                   </div>
                 </motion.div>
               ))}
             </div>
 
             {/* Quick Stats Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               {/* Mood Trends */}
-              <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Brain className="w-5 h-5 text-violet-400" />
+              <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl sm:rounded-2xl p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <h3 className="text-sm sm:text-lg font-semibold text-white flex items-center gap-2">
+                    <Brain className="w-4 h-4 sm:w-5 sm:h-5 text-violet-400" />
                     Mood Trends (14 days)
                   </h3>
                 </div>
                 {moodTrends.length > 0 ? (
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {moodTrends.slice(-7).map((trend) => (
-                      <div key={trend._id} className="flex items-center gap-3">
-                        <span className="text-xs text-slate-500 w-20">{trend._id}</span>
-                        <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                      <div key={trend._id} className="flex items-center gap-2 sm:gap-3">
+                        <span className="text-[10px] sm:text-xs text-slate-500 w-16 sm:w-20 truncate">{trend._id}</span>
+                        <div className="flex-1 h-1.5 sm:h-2 bg-slate-700 rounded-full overflow-hidden">
                           <div
                             className="h-full bg-gradient-to-r from-violet-500 to-purple-500 rounded-full"
                             style={{ width: `${trend.averageScore}%` }}
                           />
                         </div>
-                        <span className="text-sm font-medium text-white w-12 text-right">
+                        <span className="text-xs sm:text-sm font-medium text-white w-8 sm:w-12 text-right">
                           {Math.round(trend.averageScore)}%
                         </span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-slate-500 text-sm">No mood data available</p>
+                  <p className="text-slate-500 text-xs sm:text-sm">No mood data available</p>
                 )}
               </div>
 
               {/* Activity Distribution */}
-              <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-teal-400" />
+              <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl sm:rounded-2xl p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <h3 className="text-sm sm:text-lg font-semibold text-white flex items-center gap-2">
+                    <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-teal-400" />
                     Activity Distribution
                   </h3>
                 </div>
                 {activityStats.length > 0 ? (
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {activityStats.map((stat) => (
                       <div key={stat._id} className="flex items-center justify-between">
-                        <span className="text-sm text-slate-300 capitalize">{stat._id}</span>
-                        <span className="text-sm font-medium text-white">{stat.count}</span>
+                        <span className="text-xs sm:text-sm text-slate-300 capitalize truncate mr-2">{stat._id}</span>
+                        <span className="text-xs sm:text-sm font-medium text-white shrink-0">{stat.count}</span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-slate-500 text-sm">No activity data available</p>
+                  <p className="text-slate-500 text-xs sm:text-sm">No activity data available</p>
                 )}
               </div>
             </div>
@@ -353,30 +415,30 @@ export default function AdminDashboardPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl overflow-hidden"
+            className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl sm:rounded-2xl overflow-hidden"
           >
-            <div className="p-6 border-b border-slate-700/50">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Users className="w-5 h-5 text-blue-400" />
+            <div className="p-4 sm:p-6 border-b border-slate-700/50">
+              <h3 className="text-sm sm:text-lg font-semibold text-white flex items-center gap-2">
+                <Users className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
                 Recent Users
               </h3>
-              <p className="text-sm text-slate-400 mt-1">
+              <p className="text-[10px] sm:text-sm text-slate-400 mt-1">
                 Basic user information only - No sensitive data displayed
               </p>
             </div>
             <div className="divide-y divide-slate-700/50">
               {recentUsers.map((user) => (
-                <div key={user._id} className="p-4 hover:bg-slate-700/20 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-white">{user.name}</p>
-                      <p className="text-sm text-slate-400">{user.email}</p>
+                <div key={user._id} className="p-3 sm:p-4 hover:bg-slate-700/20 transition-colors">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-white text-sm truncate">{user.name}</p>
+                      <p className="text-xs sm:text-sm text-slate-400 truncate">{user.email}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm text-slate-300">
+                    <div className="text-left sm:text-right flex sm:flex-col gap-2 sm:gap-0 text-[10px] sm:text-xs shrink-0">
+                      <p className="text-slate-300">
                         Streak: {user.stats?.streak || 0} days
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-slate-500">
                         Joined: {new Date(user.createdAt).toLocaleDateString()}
                       </p>
                     </div>
@@ -384,7 +446,7 @@ export default function AdminDashboardPage() {
                 </div>
               ))}
               {recentUsers.length === 0 && (
-                <div className="p-8 text-center text-slate-500">
+                <div className="p-6 sm:p-8 text-center text-slate-500 text-sm">
                   No users found
                 </div>
               )}
@@ -396,17 +458,17 @@ export default function AdminDashboardPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
+            className="space-y-4 sm:space-y-6"
           >
-            <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">Analytics Overview</h3>
-              <p className="text-slate-400">
+            <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl sm:rounded-2xl p-4 sm:p-6">
+              <h3 className="text-sm sm:text-lg font-semibold text-white mb-3 sm:mb-4">Analytics Overview</h3>
+              <p className="text-xs sm:text-sm text-slate-400">
                 All analytics data is aggregated and anonymized. No individual user data is exposed.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                <div className="bg-slate-700/30 rounded-xl p-4">
-                  <p className="text-sm text-slate-400 mb-1">Avg Mood Score</p>
-                  <p className="text-2xl font-bold text-white">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-4 sm:mt-6">
+                <div className="bg-slate-700/30 rounded-lg sm:rounded-xl p-3 sm:p-4">
+                  <p className="text-[10px] sm:text-sm text-slate-400 mb-1">Avg Mood Score</p>
+                  <p className="text-xl sm:text-2xl font-bold text-white">
                     {moodTrends.length > 0
                       ? Math.round(
                           moodTrends.reduce((sum, t) => sum + t.averageScore, 0) /
@@ -416,15 +478,15 @@ export default function AdminDashboardPage() {
                     %
                   </p>
                 </div>
-                <div className="bg-slate-700/30 rounded-xl p-4">
-                  <p className="text-sm text-slate-400 mb-1">Total Activities</p>
-                  <p className="text-2xl font-bold text-white">
+                <div className="bg-slate-700/30 rounded-lg sm:rounded-xl p-3 sm:p-4">
+                  <p className="text-[10px] sm:text-sm text-slate-400 mb-1">Total Activities</p>
+                  <p className="text-xl sm:text-2xl font-bold text-white">
                     {activityStats.reduce((sum, s) => sum + s.count, 0)}
                   </p>
                 </div>
-                <div className="bg-slate-700/30 rounded-xl p-4">
-                  <p className="text-sm text-slate-400 mb-1">Activity Types</p>
-                  <p className="text-2xl font-bold text-white">{activityStats.length}</p>
+                <div className="bg-slate-700/30 rounded-lg sm:rounded-xl p-3 sm:p-4">
+                  <p className="text-[10px] sm:text-sm text-slate-400 mb-1">Activity Types</p>
+                  <p className="text-xl sm:text-2xl font-bold text-white">{activityStats.length}</p>
                 </div>
               </div>
             </div>
@@ -435,29 +497,29 @@ export default function AdminDashboardPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl overflow-hidden"
+            className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl sm:rounded-2xl overflow-hidden"
           >
-            <div className="p-6 border-b border-slate-700/50">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <History className="w-5 h-5 text-amber-400" />
+            <div className="p-4 sm:p-6 border-b border-slate-700/50">
+              <h3 className="text-sm sm:text-lg font-semibold text-white flex items-center gap-2">
+                <History className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
                 Admin Activity Logs
               </h3>
-              <p className="text-sm text-slate-400 mt-1">
+              <p className="text-[10px] sm:text-sm text-slate-400 mt-1">
                 Audit trail of all admin actions
               </p>
             </div>
             <div className="divide-y divide-slate-700/50">
               {adminLogs.map((log) => (
-                <div key={log._id} className="p-4 hover:bg-slate-700/20 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-white">{log.action}</p>
-                      <p className="text-sm text-slate-400">
+                <div key={log._id} className="p-3 sm:p-4 hover:bg-slate-700/20 transition-colors">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-white text-sm truncate">{log.action}</p>
+                      <p className="text-xs sm:text-sm text-slate-400 truncate">
                         {log.adminEmail} • {log.resource}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-xs text-slate-500">
+                    <div className="text-left sm:text-right shrink-0">
+                      <p className="text-[10px] sm:text-xs text-slate-500">
                         {new Date(log.timestamp).toLocaleString()}
                       </p>
                     </div>
@@ -465,7 +527,7 @@ export default function AdminDashboardPage() {
                 </div>
               ))}
               {adminLogs.length === 0 && (
-                <div className="p-8 text-center text-slate-500">
+                <div className="p-6 sm:p-8 text-center text-slate-500 text-sm">
                   No activity logs found
                 </div>
               )}
@@ -475,7 +537,7 @@ export default function AdminDashboardPage() {
 
         {/* Last Updated */}
         {stats?.lastUpdated && (
-          <p className="text-center text-xs text-slate-500 mt-8">
+          <p className="text-center text-[10px] sm:text-xs text-slate-500 mt-6 sm:mt-8">
             <Clock className="w-3 h-3 inline mr-1" />
             Last updated: {new Date(stats.lastUpdated).toLocaleString()}
           </p>

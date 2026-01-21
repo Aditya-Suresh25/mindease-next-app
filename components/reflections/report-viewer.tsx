@@ -3,10 +3,11 @@
 import { ReflectionReport } from "@/lib/api/report";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Download, Calendar, Sparkles, Brain, Activity, Lightbulb, Heart } from "lucide-react";
-import { useRef } from "react";
+import { Download, Calendar, Sparkles, Brain, Activity, Lightbulb, Heart, Loader2 } from "lucide-react";
+import { useRef, useState } from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { toast } from "sonner";
 
 interface ReportViewerProps {
     report: ReflectionReport;
@@ -14,18 +15,140 @@ interface ReportViewerProps {
 
 export function ReportViewer({ report }: ReportViewerProps) {
     const printRef = useRef<HTMLDivElement>(null);
+    const [isDownloading, setIsDownloading] = useState(false);
 
     const handleDownload = async () => {
-        if (!printRef.current) return;
+        if (!printRef.current || isDownloading) return;
 
-        const canvas = await html2canvas(printRef.current, { scale: 2 });
-        const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF("p", "mm", "a4");
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        setIsDownloading(true);
+        
+        try {
+            const element = printRef.current;
+            
+            // Create a deep clone and inline all computed styles to avoid CSS parsing issues
+            const clone = element.cloneNode(true) as HTMLElement;
+            
+            // Helper to convert computed color to RGB hex (handles oklab, oklch, etc.)
+            const toHex = (color: string): string => {
+                if (!color || color === 'transparent') return 'transparent';
+                if (color === 'rgba(0, 0, 0, 0)') return 'transparent';
+                
+                // Create a canvas to convert any color format to RGB
+                const ctx = document.createElement('canvas').getContext('2d');
+                if (!ctx) return '#000000';
+                ctx.fillStyle = color;
+                return ctx.fillStyle; // Returns hex
+            };
 
-        pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`MindEase-Reflection-${new Date(report.createdAt).toISOString().slice(0, 10)}.pdf`);
+            // Recursively process all elements and inline their styles
+            const processElement = (original: Element, cloned: Element) => {
+                const htmlOriginal = original as HTMLElement;
+                const htmlCloned = cloned as HTMLElement;
+                
+                const computed = getComputedStyle(htmlOriginal);
+                
+                // Set explicit colors as inline styles (converted to hex)
+                htmlCloned.style.color = toHex(computed.color);
+                htmlCloned.style.backgroundColor = toHex(computed.backgroundColor);
+                htmlCloned.style.borderTopColor = toHex(computed.borderTopColor);
+                htmlCloned.style.borderRightColor = toHex(computed.borderRightColor);
+                htmlCloned.style.borderBottomColor = toHex(computed.borderBottomColor);
+                htmlCloned.style.borderLeftColor = toHex(computed.borderLeftColor);
+                
+                // Remove problematic background images (gradients with oklab)
+                const bgImage = computed.backgroundImage;
+                if (bgImage && bgImage !== 'none' && (bgImage.includes('oklab') || bgImage.includes('oklch') || bgImage.includes('color('))) {
+                    htmlCloned.style.backgroundImage = 'none';
+                }
+                
+                // Copy essential layout styles
+                htmlCloned.style.display = computed.display;
+                htmlCloned.style.padding = computed.padding;
+                htmlCloned.style.margin = computed.margin;
+                htmlCloned.style.borderWidth = computed.borderWidth;
+                htmlCloned.style.borderStyle = computed.borderStyle;
+                htmlCloned.style.borderRadius = computed.borderRadius;
+                htmlCloned.style.fontSize = computed.fontSize;
+                htmlCloned.style.fontWeight = computed.fontWeight;
+                htmlCloned.style.lineHeight = computed.lineHeight;
+                htmlCloned.style.textAlign = computed.textAlign as string;
+                
+                // Process children
+                const originalChildren = original.children;
+                const clonedChildren = cloned.children;
+                for (let i = 0; i < originalChildren.length; i++) {
+                    if (clonedChildren[i]) {
+                        processElement(originalChildren[i], clonedChildren[i]);
+                    }
+                }
+            };
+
+            // Process the clone
+            processElement(element, clone);
+            
+            // Create a temporary container
+            const container = document.createElement('div');
+            container.style.position = 'absolute';
+            container.style.left = '-9999px';
+            container.style.top = '0';
+            container.style.backgroundColor = '#ffffff';
+            container.appendChild(clone);
+            document.body.appendChild(container);
+
+            try {
+                // Create canvas from the processed clone
+                const canvas = await html2canvas(clone, { 
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: "#ffffff",
+                    logging: false,
+                });
+                
+                const imgData = canvas.toDataURL("image/png", 1.0);
+                
+                // Create PDF with proper dimensions
+                const pdf = new jsPDF("p", "mm", "a4");
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                
+                // Calculate dimensions maintaining aspect ratio
+                const imgWidth = pdfWidth - 20;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                
+                // Handle multi-page content
+                let heightLeft = imgHeight;
+                let position = 10;
+                const pageHeight = pdfHeight - 20;
+                
+                pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+                
+                while (heightLeft > 0) {
+                    position = heightLeft - imgHeight + 10;
+                    pdf.addPage();
+                    pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
+                
+                const dateStr = new Date(report.createdAt).toISOString().slice(0, 10);
+                pdf.save(`MindEase-Reflection-${dateStr}.pdf`);
+                
+                toast.success("PDF downloaded successfully", {
+                    description: "Your reflection has been saved. 🌸",
+                });
+            } finally {
+                // Clean up temporary container
+                document.body.removeChild(container);
+            }
+        } catch (error) {
+            console.error("PDF generation error:", error);
+            toast.error("Failed to download PDF", {
+                description: "Please try again. If the issue persists, try taking a screenshot instead. 🍃",
+            });
+        } finally {
+            setIsDownloading(false);
+        }
     };
 
     return (
@@ -37,13 +160,28 @@ export function ReportViewer({ report }: ReportViewerProps) {
                         {new Date(report.startDate).toLocaleDateString("en-US", { month: "long", day: "numeric" })} — {new Date(report.endDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
                     </span>
                 </div>
-                <Button onClick={handleDownload} variant="outline" size="sm" className="gap-2">
-                    <Download className="h-4 w-4" />
-                    Download PDF
+                <Button 
+                    onClick={handleDownload} 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-2"
+                    disabled={isDownloading}
+                >
+                    {isDownloading ? (
+                        <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Generating...
+                        </>
+                    ) : (
+                        <>
+                            <Download className="h-4 w-4" />
+                            Download PDF
+                        </>
+                    )}
                 </Button>
             </div>
 
-            <div ref={printRef} className="bg-card rounded-2xl border shadow-sm overflow-hidden">
+            <div ref={printRef} data-pdf-content className="bg-card rounded-2xl border shadow-sm overflow-hidden">
                 {/* Header */}
                 <div className="bg-gradient-to-br from-primary/10 via-purple-500/5 to-transparent p-8 border-b">
                     <div className="text-center space-y-3">

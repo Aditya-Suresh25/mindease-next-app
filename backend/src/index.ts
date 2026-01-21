@@ -15,6 +15,7 @@ import userRouter from "./routes/user";
 import reportRouter from "./routes/report";
 import quoteRouter from "./routes/quote";
 import adminRouter from "./routes/admin";
+import reviewRouter from "./routes/review";
 import { connectDB } from "./utils/db";
 import { inngest } from "./inngest/index";
 import { functions as inngestFunctions } from "./inngest/functions";
@@ -74,6 +75,7 @@ app.use("/api/user", userRouter);
 app.use("/api/reports", reportRouter);
 app.use("/api/quote", quoteRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/reviews", reviewRouter);
 
 // Error handling middleware
 app.use(errorHandler);

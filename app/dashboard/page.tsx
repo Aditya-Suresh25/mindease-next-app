@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "@/lib/contexts/session-context"
-import { format, startOfDay, endOfDay } from "date-fns"
+import { format, startOfDay, endOfDay, subDays } from "date-fns"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 
@@ -29,7 +29,6 @@ import {
   Calendar,
   Clock,
   Heart,
-  Loader2,
   MessageSquare,
   Sparkles,
   Zap,
@@ -44,6 +43,17 @@ import { MoodForm } from "@/components/mood/mood-form"
 import { ActivityLogger } from "@/components/activities/activity-logger"
 import { AllActivities } from "@/components/activities/all-activities"
 import { DailyQuote } from "@/components/quote/daily-quote"
+
+// Charts
+import {
+  MoodTrendsChart,
+  MoodDistributionChart,
+  ActivityEngagementChart,
+  CheckInRhythm,
+} from "@/components/charts"
+
+// Loader
+import { SoothingLoader, SoothingDots } from "@/components/ui/soothing-loader"
 
 // API
 import { getActivities } from "@/lib/api/activity"
@@ -66,6 +76,10 @@ export default function DashboardPage() {
   const [showMoodModal, setShowMoodModal] = useState(false)
   const [showActivityLogger, setShowActivityLogger] = useState(false)
   const [showAllActivities, setShowAllActivities] = useState(false)
+  
+  // Navigation loading states for slow actions
+  const [isNavigatingToTherapy, setIsNavigatingToTherapy] = useState(false)
+  const [isNavigatingToReflections, setIsNavigatingToReflections] = useState(false)
 
   // Stats State
   const [moodScore, setMoodScore] = useState(0)
@@ -76,22 +90,46 @@ export default function DashboardPage() {
   const [aiInsight, setAiInsight] = useState<string | null>(null)
   const [showCrisisModal, setShowCrisisModal] = useState(false)
 
+  // Historical data for visualizations
+  const [moodHistory, setMoodHistory] = useState<any[]>([])
+  const [activityHistory, setActivityHistory] = useState<any[]>([])
+  const [isLoadingCharts, setIsLoadingCharts] = useState(true)
+
   /* ---------------- Core Sync ---------------- */
   const fetchDashboardStats = useCallback(async () => {
     try {
       setIsLoadingStats(true)
+      setIsLoadingCharts(true)
       const today = new Date()
       const dayStart = startOfDay(today)
       const dayEnd = endOfDay(today)
+      
+      // Extended range for charts (30 days for rhythm, 14 for trends)
+      const extendedStart = startOfDay(subDays(today, 30))
 
       // Parallel fetching for speed
-      const [moods, activities, sessions, recommendation, userStats] = await Promise.all([
+      const [todayMoods, extendedMoods, activities, sessions, recommendation, userStats] = await Promise.all([
         getMoodHistory({ startDate: dayStart.toISOString(), endDate: dayEnd.toISOString() }),
+        getMoodHistory({ startDate: extendedStart.toISOString(), endDate: dayEnd.toISOString() }),
         getActivities(),
         getAllChatSessions(),
         getLatestRecommendation("daily_insight"),
         getUserStats()
       ])
+      
+      // Store historical data for charts
+      if (extendedMoods.success && extendedMoods.data) {
+        setMoodHistory(extendedMoods.data)
+      }
+      
+      if (activities.success && activities.data) {
+        setActivityHistory(activities.data)
+      }
+      
+      setIsLoadingCharts(false)
+      
+      // Use todayMoods for today's stats
+      const moods = todayMoods
 
       if (recommendation.success && recommendation.data) {
         setAiInsight(recommendation.data.content)
@@ -160,6 +198,7 @@ export default function DashboardPage() {
     } catch (e) {
       console.error(e)
       setIsLoadingStats(false)
+      setIsLoadingCharts(false)
     }
   }, [])
 
@@ -177,10 +216,10 @@ export default function DashboardPage() {
       value: moodScore ? `${moodScore}%` : "—",
       icon: Brain,
       color: "text-violet-500 dark:text-violet-400",
-      gradientFrom: "from-violet-500/20",
-      gradientTo: "to-purple-500/10",
-      borderColor: "border-violet-500/30 dark:border-violet-400/20",
-      iconBg: "bg-violet-500/15 dark:bg-violet-500/20",
+      gradientFrom: "from-violet-500/25",
+      gradientTo: "to-purple-500/15",
+      borderColor: "border-violet-500/25 dark:border-violet-400/35",
+      iconBg: "bg-violet-500/20 dark:bg-violet-500/30",
       description: "Daily Average",
       trend: "+2%",
       showProgress: true,
@@ -191,10 +230,10 @@ export default function DashboardPage() {
       value: `${streak} Days`,
       icon: Zap,
       color: "text-amber-500 dark:text-amber-400",
-      gradientFrom: "from-amber-500/20",
-      gradientTo: "to-orange-500/10",
-      borderColor: "border-amber-500/30 dark:border-amber-400/20",
-      iconBg: "bg-amber-500/15 dark:bg-amber-500/20",
+      gradientFrom: "from-amber-500/25",
+      gradientTo: "to-orange-500/15",
+      borderColor: "border-amber-500/25 dark:border-amber-400/35",
+      iconBg: "bg-amber-500/20 dark:bg-amber-500/30",
       description: "Consistency",
       trend: "+1 day",
     },
@@ -203,10 +242,10 @@ export default function DashboardPage() {
       value: `${todayTherapySessions}`,
       icon: Heart,
       color: "text-rose-500 dark:text-rose-400",
-      gradientFrom: "from-rose-500/20",
-      gradientTo: "to-pink-500/10",
-      borderColor: "border-rose-500/30 dark:border-rose-400/20",
-      iconBg: "bg-rose-500/15 dark:bg-rose-500/20",
+      gradientFrom: "from-rose-500/25",
+      gradientTo: "to-pink-500/15",
+      borderColor: "border-rose-500/25 dark:border-rose-400/35",
+      iconBg: "bg-rose-500/20 dark:bg-rose-500/30",
       description: "Therapy Chats",
       trend: todayTherapySessions > 0 ? "Great job" : "Start one",
     },
@@ -215,10 +254,10 @@ export default function DashboardPage() {
       value: `${todayActivities}`,
       icon: Activity,
       color: "text-teal-500 dark:text-teal-400",
-      gradientFrom: "from-teal-500/20",
-      gradientTo: "to-cyan-500/10",
-      borderColor: "border-teal-500/30 dark:border-teal-400/20",
-      iconBg: "bg-teal-500/15 dark:bg-teal-500/20",
+      gradientFrom: "from-teal-500/25",
+      gradientTo: "to-cyan-500/15",
+      borderColor: "border-teal-500/25 dark:border-teal-400/35",
+      iconBg: "bg-teal-500/20 dark:bg-teal-500/30",
       description: "Logged Actions",
       trend: todayActivities > 0 ? "Active" : "Log now",
     },
@@ -230,11 +269,11 @@ export default function DashboardPage() {
       description: "Check-in with yourself",
       icon: Heart,
       iconColor: "text-rose-500 dark:text-rose-400",
-      gradientFrom: "from-rose-500/10",
-      gradientTo: "to-pink-500/5",
-      hoverGradient: "hover:from-rose-500/20 hover:to-pink-500/10",
-      borderColor: "border-rose-200/50 dark:border-rose-500/20",
-      iconBg: "bg-rose-100 dark:bg-rose-500/20",
+      gradientFrom: "from-rose-500/15",
+      gradientTo: "to-pink-500/10",
+      hoverGradient: "hover:from-rose-500/25 hover:to-pink-500/15",
+      borderColor: "border-rose-300/60 dark:border-rose-500/35",
+      iconBg: "bg-rose-100 dark:bg-rose-500/30",
       onClick: () => setShowMoodModal(true),
     },
     {
@@ -242,11 +281,11 @@ export default function DashboardPage() {
       description: "Record your progress",
       icon: Activity,
       iconColor: "text-teal-500 dark:text-teal-400",
-      gradientFrom: "from-teal-500/10",
-      gradientTo: "to-cyan-500/5",
-      hoverGradient: "hover:from-teal-500/20 hover:to-cyan-500/10",
-      borderColor: "border-teal-200/50 dark:border-teal-500/20",
-      iconBg: "bg-teal-100 dark:bg-teal-500/20",
+      gradientFrom: "from-teal-500/15",
+      gradientTo: "to-cyan-500/10",
+      hoverGradient: "hover:from-teal-500/25 hover:to-cyan-500/15",
+      borderColor: "border-teal-300/60 dark:border-teal-500/35",
+      iconBg: "bg-teal-100 dark:bg-teal-500/30",
       onClick: () => setShowActivityLogger(true),
     },
     {
@@ -255,18 +294,23 @@ export default function DashboardPage() {
       icon: MessageSquare,
       iconColor: "text-white",
       isPrimary: true,
-      onClick: () => router.push("/therapy/new"),
+      isLoading: isNavigatingToTherapy,
+      loadingMessage: "Preparing your safe space…",
+      onClick: () => {
+        setIsNavigatingToTherapy(true)
+        router.push("/therapy/new")
+      },
     },
     {
       title: "Emergency Aid",
       description: "Get immediate help",
       icon: PhoneCall,
       iconColor: "text-orange-500 dark:text-orange-400",
-      gradientFrom: "from-orange-500/10",
-      gradientTo: "to-amber-500/5",
-      hoverGradient: "hover:from-orange-500/20 hover:to-amber-500/10",
-      borderColor: "border-orange-200/50 dark:border-orange-500/20",
-      iconBg: "bg-orange-100 dark:bg-orange-500/20",
+      gradientFrom: "from-orange-500/15",
+      gradientTo: "to-amber-500/10",
+      hoverGradient: "hover:from-orange-500/25 hover:to-amber-500/15",
+      borderColor: "border-orange-300/60 dark:border-orange-500/35",
+      iconBg: "bg-orange-100 dark:bg-orange-500/30",
       onClick: () => router.push("/resources"),
     },
     {
@@ -274,12 +318,17 @@ export default function DashboardPage() {
       description: "View AI reflections",
       icon: Sparkles,
       iconColor: "text-violet-500 dark:text-violet-400",
-      gradientFrom: "from-violet-500/10",
-      gradientTo: "to-purple-500/5",
-      hoverGradient: "hover:from-violet-500/20 hover:to-purple-500/10",
-      borderColor: "border-violet-200/50 dark:border-violet-500/20",
-      iconBg: "bg-violet-100 dark:bg-violet-500/20",
-      onClick: () => router.push("/reflections"),
+      gradientFrom: "from-violet-500/15",
+      gradientTo: "to-purple-500/10",
+      hoverGradient: "hover:from-violet-500/25 hover:to-purple-500/15",
+      borderColor: "border-violet-300/60 dark:border-violet-500/35",
+      iconBg: "bg-violet-100 dark:bg-violet-500/30",
+      isLoading: isNavigatingToReflections,
+      loadingMessage: "Gathering your insights…",
+      onClick: () => {
+        setIsNavigatingToReflections(true)
+        router.push("/reflections")
+      },
     },
   ]
 
@@ -327,8 +376,8 @@ export default function DashboardPage() {
 
           {isLoadingStats && (
             <div className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-gradient-to-r from-primary/10 to-teal-500/10 border border-primary/20 backdrop-blur-md shadow-sm">
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              <span className="text-xs font-medium text-foreground/70">Syncing your data...</span>
+              <SoothingDots />
+              <span className="text-xs font-medium text-foreground/70">Preparing your space…</span>
             </div>
           )}
         </motion.div>
@@ -401,11 +450,11 @@ export default function DashboardPage() {
                   "bg-gradient-to-br",
                   stat.gradientFrom,
                   stat.gradientTo,
-                  "dark:opacity-80"
+                  "dark:opacity-90"
                 )} />
                 <div className={cn(
-                  "absolute inset-0 rounded-3xl backdrop-blur-sm",
-                  "bg-white/60 dark:bg-gray-900/40",
+                  "absolute inset-0 rounded-3xl",
+                  "bg-white/80 dark:bg-gray-800/70",
                   "border",
                   stat.borderColor,
                   "shadow-sm group-hover:shadow-md transition-all duration-300"
@@ -422,8 +471,8 @@ export default function DashboardPage() {
                     {stat.trend && (
                       <span className={cn(
                         "text-[10px] font-semibold px-2.5 py-1 rounded-full",
-                        "bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm",
-                        "border border-current/20",
+                        "bg-white dark:bg-gray-700",
+                        "border border-current/30",
                         "shadow-sm",
                         stat.color
                       )}>
@@ -471,32 +520,58 @@ export default function DashboardPage() {
               <button
                 key={action.title}
                 onClick={action.onClick}
+                disabled={action.isLoading}
                 className={cn(
                   "relative group overflow-hidden rounded-2xl p-5 text-left transition-all duration-300",
+                  action.isLoading && "pointer-events-none",
                   action.isPrimary
-                    ? "col-span-1 md:col-span-2 lg:col-span-1 bg-gradient-to-br from-primary via-teal-500 to-cyan-500 dark:from-primary dark:via-teal-500 dark:to-cyan-600 text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/35 hover:-translate-y-1 hover:scale-[1.02]"
+                    ? "col-span-1 md:col-span-2 lg:col-span-1 bg-gradient-to-br from-primary via-teal-500 to-cyan-500 dark:from-primary dark:via-teal-400 dark:to-cyan-500 text-white shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-1 hover:scale-[1.02]"
                     : cn(
-                        "bg-gradient-to-br backdrop-blur-sm",
-                        action.gradientFrom,
-                        action.gradientTo,
-                        action.hoverGradient,
+                        "bg-white/80 dark:bg-gray-800/70",
                         "border",
                         action.borderColor,
+                        "hover:bg-white dark:hover:bg-gray-800/90",
                         "hover:shadow-md hover:-translate-y-0.5 transition-all"
                       )
                 )}
               >
-                {/* Subtle inner glow for non-primary buttons */}
+                {/* Loading overlay */}
+                {action.isLoading && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className={cn(
+                      "absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 backdrop-blur-sm rounded-2xl",
+                      action.isPrimary 
+                        ? "bg-primary/20" 
+                        : "bg-white/60 dark:bg-gray-800/60"
+                    )}
+                  >
+                    <SoothingDots size="md" />
+                    <span className={cn(
+                      "text-xs font-medium",
+                      action.isPrimary ? "text-white" : "text-muted-foreground"
+                    )}>
+                      {action.loadingMessage || "Loading…"}
+                    </span>
+                  </motion.div>
+                )}
+                
+                {/* Subtle gradient overlay for non-primary buttons */}
                 {!action.isPrimary && (
-                  <div className="absolute inset-0 bg-white/40 dark:bg-white/5 rounded-2xl" />
+                  <div className={cn(
+                    "absolute inset-0 bg-gradient-to-br opacity-30 dark:opacity-40 rounded-2xl",
+                    action.gradientFrom,
+                    action.gradientTo
+                  )} />
                 )}
 
                 <div className="relative z-10 flex items-center gap-4">
                   <div className={cn(
                     "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 group-hover:scale-110",
                     action.isPrimary 
-                      ? "bg-white/20 shadow-inner" 
-                      : action.iconBg
+                      ? "bg-white/25 shadow-inner" 
+                      : cn(action.iconBg, "border border-current/10")
                   )}>
                     <action.icon className={cn("w-6 h-6", action.iconColor)} />
                   </div>
@@ -509,7 +584,7 @@ export default function DashboardPage() {
                     </h4>
                     <p className={cn(
                       "text-xs truncate",
-                      action.isPrimary ? "text-white/80" : "text-muted-foreground"
+                      action.isPrimary ? "text-white/90" : "text-muted-foreground"
                     )}>
                       {action.description}
                     </p>
@@ -531,11 +606,56 @@ export default function DashboardPage() {
           </div>
         </motion.div>
 
-        {/* 5. Anxiety Games Section */}
+        {/* 5. Wellness Insights - Data Visualizations */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
+          transition={{ delay: 0.35 }}
+        >
+          <div className="flex items-center justify-between mb-6 px-1">
+            <h2 className="text-lg font-semibold flex items-center gap-2.5 text-foreground">
+              <div className="p-1.5 rounded-lg bg-gradient-to-br from-violet-500/20 to-purple-500/20 dark:from-violet-500/30 dark:to-purple-500/30">
+                <Sparkles className="w-4 h-4 text-violet-500 dark:text-violet-400" />
+              </div>
+              Your Wellness Insights
+            </h2>
+            <p className="text-xs text-muted-foreground hidden sm:block">
+              Patterns over time — not scores, just reflections
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 md:gap-6">
+            {/* Mood Trends Chart */}
+            <MoodTrendsChart
+              data={moodHistory}
+              isLoading={isLoadingCharts}
+            />
+
+            {/* Mood Distribution */}
+            <MoodDistributionChart
+              data={moodHistory}
+              isLoading={isLoadingCharts}
+            />
+
+            {/* Activity Engagement */}
+            <ActivityEngagementChart
+              data={activityHistory}
+              isLoading={isLoadingCharts}
+            />
+
+            {/* Check-in Rhythm */}
+            <CheckInRhythm
+              moodData={moodHistory}
+              isLoading={isLoadingCharts}
+            />
+          </div>
+        </motion.div>
+
+        {/* 6. Anxiety Games Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45 }}
           className="pt-4"
         >
           <AnxietyGames onViewAllActivities={() => setShowAllActivities(true)} />
