@@ -18,9 +18,9 @@ import {
   Edit,
   Clock,
 } from "lucide-react";
-import { motion, useScroll, useTransform, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { Slider } from "@/components/ui/slider";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -31,12 +31,6 @@ import {
 import React from "react";
 import { Ripple } from "@/components/ui/ripple";
 import { EcosystemSection } from "@/components/landing/ecosystem-section";
-import { 
-  ParallaxSection, 
-  TherapeuticShapes, 
-  FloatingCards,
-  WaveDecoration 
-} from "@/components/ui/parallax-section";
 
 export default function Home() {
   const emotions = [
@@ -51,21 +45,6 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
-  
-  // Parallax scroll hooks
-  const heroRef = useRef<HTMLElement>(null);
-  const prefersReducedMotion = useReducedMotion();
-  
-  const { scrollYProgress: heroScrollProgress } = useScroll({
-    target: heroRef,
-    offset: ["start start", "end start"]
-  });
-  
-  // Subtle parallax transforms for hero
-  const heroBackgroundY = useTransform(heroScrollProgress, [0, 1], [0, 100]);
-  const heroMidLayerY = useTransform(heroScrollProgress, [0, 1], [0, 60]);
-  const heroContentY = useTransform(heroScrollProgress, [0, 1], [0, 30]);
-  const heroOpacity = useTransform(heroScrollProgress, [0, 0.8], [1, 0.3]);
 
   const welcomeSteps = [
     {
@@ -159,79 +138,24 @@ export default function Home() {
 
   return (
     <div className="flex flex-col min-h-screen overflow-hidden">
-      {/* Hero Section with Parallax */}
-      <section 
-        ref={heroRef}
-        className="relative min-h-[90vh] mt-20 flex flex-col items-center justify-center py-12 px-4 overflow-hidden"
-      >
-        {/* === BACKGROUND LAYER - Slowest parallax movement === */}
-        <motion.div 
-          className="absolute inset-0 -z-20 overflow-hidden"
-          style={prefersReducedMotion ? {} : {
-            y: heroBackgroundY,
-            willChange: "transform"
-          }}
-        >
-          {/* Therapeutic floating shapes */}
-          <TherapeuticShapes variant="hero" />
-          
-          {/* Dynamic emotion-based gradient */}
-          <motion.div
+      {/* Hero Section */}
+      <section className="relative min-h-[90vh] mt-20 flex flex-col items-center justify-center py-12 px-4">
+        {/* Enhanced background elements */}
+        <div className="absolute inset-0 -z-10 overflow-hidden">
+          <div
             className={`absolute w-[500px] h-[500px] rounded-full blur-3xl top-0 -left-20 transition-all duration-700 ease-in-out
-            bg-gradient-to-r ${currentEmotion.color} to-transparent opacity-40`}
-            animate={{
-              scale: [1, 1.05, 1],
-              opacity: [0.3, 0.5, 0.3]
-            }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
+            bg-gradient-to-r ${currentEmotion.color} to-transparent opacity-60`}
           />
-          <motion.div 
-            className="absolute w-[400px] h-[400px] rounded-full bg-secondary/10 blur-3xl bottom-0 right-0"
-            animate={{
-              scale: [1, 1.08, 1],
-              opacity: [0.2, 0.4, 0.2]
-            }}
-            transition={{
-              duration: 10,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 1
-            }}
-          />
-          
-          {/* Soft overlay for depth */}
-          <div className="absolute inset-0 bg-background/70 backdrop-blur-3xl" />
-        </motion.div>
+          <div className="absolute w-[400px] h-[400px] rounded-full bg-secondary/10 blur-3xl bottom-0 right-0 animate-pulse delay-700" />
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-3xl" />
+        </div>
+        <Ripple className="opacity-60" />
 
-        {/* === MID LAYER - Floating cards with moderate parallax === */}
-        <motion.div
-          className="absolute inset-0 -z-10 pointer-events-none hidden md:block"
-          style={prefersReducedMotion ? {} : {
-            y: heroMidLayerY,
-            opacity: heroOpacity,
-            willChange: "transform, opacity"
-          }}
-        >
-          <FloatingCards />
-        </motion.div>
-
-        {/* Ripple effect */}
-        <Ripple className="opacity-40" />
-
-        {/* === FOREGROUND LAYER - Main content with minimal movement === */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: mounted ? 1 : 0, y: mounted ? 0 : 20 }}
           transition={{ duration: 1, ease: "easeOut" }}
-          className="relative space-y-8 text-center z-10"
-          style={prefersReducedMotion ? {} : {
-            y: heroContentY,
-            willChange: "transform"
-          }}
+          className="relative space-y-8 text-center"
         >
           {/* Enhanced badge with subtle animation */}
           <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm border border-primary/20 bg-primary/5 backdrop-blur-sm hover:border-primary/40 transition-all duration-300">
@@ -333,31 +257,39 @@ export default function Home() {
           </motion.div>
         </motion.div>
 
-        {/* Enhanced scroll indicator with parallax fade */}
+        {/* Enhanced scroll indicator */}
         <motion.div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10"
+          className="absolute bottom-8 left-1/2 -translate-x-1/2"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1, duration: 0.8 }}
-          style={prefersReducedMotion ? {} : { opacity: heroOpacity }}
         >
           <div className="w-6 h-10 rounded-full border-2 border-primary/20 flex items-start justify-center p-1 hover:border-primary/40 transition-colors duration-300">
             <div className="w-1 h-2 rounded-full bg-primary animate-scroll" />
           </div>
         </motion.div>
-        
-        {/* Gentle wave at bottom of hero */}
-        <WaveDecoration className="z-0" />
       </section>
 
       {/* Ecosystem Section - Replaces Features Grid */}
       <EcosystemSection />
 
-      {/* How It Works Section - WITH PARALLAX */}
-      <ParallaxSection
-        className="bg-gradient-to-b from-background/50 to-background relative py-20 md:py-32"
-        backgroundContent={<TherapeuticShapes variant="features" />}
+      {/* How It Works Section - FULLY THEMED */}
+      <section
+        id="how-it-works"
+        // FIX: Background uses theme background
+        className="bg-gradient-to-b from-background/50 to-background relative py-20 md:py-32 overflow-hidden"
       >
+
+        {/* Background decoration */}
+        <div
+          // FIX: Uses primary theme color
+          className="absolute top-1/4 left-0 w-[300px] h-[300px] rounded-full blur-[100px] bg-primary/10 opacity-50"
+        ></div>
+        <div
+          // FIX: Uses secondary theme color
+          className="absolute bottom-1/4 right-0 w-[350px] h-[350px] rounded-full blur-[100px] bg-secondary/10 opacity-50"
+        ></div>
+
         <div className="max-w-7xl mx-auto px-6 md:px-8 relative z-10">
 
           {/* Section Header */}
@@ -489,7 +421,7 @@ export default function Home() {
           </motion.div>
 
         </div>
-      </ParallaxSection>
+      </section>
 
 
       {/* Dialog (Your Original Code) */}
