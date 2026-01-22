@@ -145,7 +145,14 @@ export function ActivityLogger({
                 <button
                   key={activity.id}
                   type="button"
-                  onClick={() => setType(activity.id)}
+                  onClick={() => {
+                    setType(activity.id)
+                    // Auto-populate activity name if empty or still matches another activity type
+                    const currentlyMatchesType = activityTypes.some(a => a.name === name)
+                    if (!name.trim() || currentlyMatchesType) {
+                      setName(activity.name)
+                    }
+                  }}
                   className={`
                     group relative flex flex-col items-center justify-center gap-1.5 rounded-lg p-2.5 
                     transition-all duration-200 overflow-hidden

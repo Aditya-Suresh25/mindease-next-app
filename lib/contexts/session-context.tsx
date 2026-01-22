@@ -87,8 +87,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
     } finally {
       localStorage.removeItem("token");
+      // Clear auth cookie
+      document.cookie = "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
       setUser(null);
       router.push("/");
+      router.refresh();
     }
   };
 
@@ -106,8 +109,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
     } finally {
       localStorage.removeItem("token");
+      // Clear auth cookie
+      document.cookie = "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
       setUser(null);
       router.push("/");
+      router.refresh();
     }
   }, [router]);
 

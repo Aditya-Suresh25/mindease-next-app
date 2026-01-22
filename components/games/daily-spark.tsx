@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles } from "lucide-react";
+import { Sparkles, RefreshCcw, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface Spark {
     id: number;
@@ -29,18 +30,19 @@ export const DailySpark = () => {
     const TARGET_SPARKS = 10;
 
     useEffect(() => {
-        // Pick random affirmation on mount
         setAffirmation(AFFIRMATIONS[Math.floor(Math.random() * AFFIRMATIONS.length)]);
 
-        // Spawn sparks periodically
         const interval = setInterval(() => {
             if (completed) return;
             if (sparks.length < 5) {
                 const newSpark = {
                     id: Date.now(),
-                    x: Math.random() * 80 + 10, // 10% to 90%
-                    y: Math.random() * 60 + 20, // 20% to 80%
-                    size: Math.random() * 20 + 24, // 24-44px
+                    // Narrower horizontal range for easier thumb reach
+                    x: Math.random() * 70 + 15, 
+                    // Centered vertical range to avoid system gestures
+                    y: Math.random() * 50 + 25, 
+                    // Significantly larger touch targets for mobile (min 44px)
+                    size: Math.random() * 10 + 44, 
                 };
                 setSparks((prev) => [...prev, newSpark]);
             }
@@ -68,57 +70,85 @@ export const DailySpark = () => {
     }
 
     return (
-        <div className="relative w-full h-[400px] bg-amber-50 rounded-xl overflow-hidden flex flex-col items-center justify-center">
-            <div className="absolute top-4 left-0 w-full text-center z-10 pointer-events-none">
-                <h3 className="text-amber-900 font-medium">Daily Spark</h3>
-                <p className="text-amber-700/60 text-sm">
-                    Collect {TARGET_SPARKS - collectedCount > 0 ? TARGET_SPARKS - collectedCount : 0} more sparks.
+        <div className="relative w-full h-[100dvh] sm:h-[500px] bg-gradient-to-b from-amber-50 to-orange-100 sm:rounded-3xl overflow-hidden flex flex-col items-center justify-center">
+            
+            {/* --- COMPACT MOBILE HEADER --- */}
+            <div className="absolute top-12 sm:top-8 left-0 w-full text-center z-10 px-6 space-y-1">
+                <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center justify-center gap-2"
+                >
+                    <Sparkles className="w-4 h-4 text-amber-600" />
+                    <h3 className="text-amber-900 font-black uppercase tracking-widest text-xs">Daily Spark</h3>
+                </motion.div>
+                <p className="text-amber-800/60 text-[10px] font-bold uppercase tracking-tighter">
+                    Catch {TARGET_SPARKS - collectedCount} more to brighten your day
                 </p>
             </div>
 
+            {/* --- PLAY AREA --- */}
             <AnimatePresence>
                 {!completed && sparks.map((spark) => (
                     <motion.button
                         key={spark.id}
                         initial={{ scale: 0, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 1.5, opacity: 0 }}
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        className="absolute text-amber-500 drop-shadow-lg cursor-pointer z-20 outline-none focus:outline-none"
-                        style={{ left: `${spark.x}%`, top: `${spark.y}%` }}
+                        exit={{ scale: 2, opacity: 0, filter: "blur(10px)" }}
+                        whileTap={{ scale: 0.8 }}
+                        className="absolute text-amber-500 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)] cursor-pointer z-20 flex items-center justify-center touch-manipulation"
+                        style={{ 
+                            left: `${spark.x}%`, 
+                            top: `${spark.y}%`,
+                            width: spark.size,
+                            height: spark.size 
+                        }}
                         onClick={() => collectSpark(spark.id)}
-                        transition={{ duration: 0.5 }}
                     >
-                        <Sparkles size={spark.size} fill="currentColor" />
+                        <Sparkles 
+                            size={spark.size * 0.8} 
+                            fill="currentColor" 
+                            className="animate-pulse"
+                        />
                     </motion.button>
                 ))}
             </AnimatePresence>
 
-            {completed && (
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="z-30 text-center p-8 bg-white/80 backdrop-blur-md rounded-2xl shadow-sm border border-amber-100 max-w-sm mx-4"
-                >
-                    <Sparkles className="w-12 h-12 text-amber-400 mx-auto mb-4" />
-                    <h4 className="text-xl font-semibold text-amber-900 mb-2">Spark Collected</h4>
-                    <p className="text-amber-700 mb-6 italic">"{affirmation}"</p>
-                    <Button onClick={handleRestart} className="bg-amber-500 hover:bg-amber-600 text-white">
-                        Collect Again
-                    </Button>
-                </motion.div>
-            )}
-
-            {/* Progress Bar */}
-            {!completed && (
-                <div className="absolute bottom-0 left-0 h-2 bg-amber-200 w-full">
+            {/* --- COMPLETION CARD (Mobile Optimized) --- */}
+            <AnimatePresence>
+                {completed && (
                     <motion.div
-                        className="h-full bg-amber-500"
-                        animate={{ width: `${(collectedCount / TARGET_SPARKS) * 100}%` }}
-                    />
-                </div>
-            )}
+                        initial={{ opacity: 0, scale: 0.9, y: 30 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        className="z-30 text-center p-8 sm:p-12 bg-white/90 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border-4 border-white mx-6 max-w-sm space-y-6"
+                    >
+                        <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                            <Trophy className="w-10 h-10 text-amber-500" />
+                        </div>
+                        <div className="space-y-2">
+                            <h4 className="text-2xl font-black text-amber-900 tracking-tight">Well Done</h4>
+                            <p className="text-amber-800 text-sm sm:text-base font-medium italic leading-relaxed">
+                                "{affirmation}"
+                            </p>
+                        </div>
+                        <Button 
+                            onClick={handleRestart} 
+                            className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-2xl py-6 h-auto text-lg font-bold shadow-lg shadow-amber-500/30 active:scale-95 transition-all"
+                        >
+                            <RefreshCcw className="mr-2 h-5 w-5" /> Play Again
+                        </Button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* --- BOTTOM PROGRESS BAR --- */}
+            <div className="absolute bottom-0 left-0 h-4 bg-amber-200/50 w-full backdrop-blur-md border-t border-white/20">
+                <motion.div
+                    className="h-full bg-gradient-to-r from-amber-400 to-orange-500 shadow-[0_0_15px_rgba(245,158,11,0.5)]"
+                    animate={{ width: `${(collectedCount / TARGET_SPARKS) * 100}%` }}
+                    transition={{ type: "spring", stiffness: 50 }}
+                />
+            </div>
         </div>
     );
 };

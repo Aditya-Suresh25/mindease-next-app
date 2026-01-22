@@ -69,7 +69,7 @@ export default function DashboardPage() {
   const handleSettings = () => {
     router.push("/settings")
   }
-  const { user } = useSession()
+  const { user, loading: sessionLoading, isAuthenticated } = useSession()
 
   const [currentTime, setCurrentTime] = useState(new Date())
 
@@ -205,9 +205,22 @@ export default function DashboardPage() {
   /* ---------------- Effects ---------------- */
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
-    fetchDashboardStats()
     return () => clearInterval(timer)
-  }, [fetchDashboardStats])
+  }, [])
+
+  // Only fetch stats when session is loaded and user is authenticated
+  useEffect(() => {
+    if (!sessionLoading && isAuthenticated) {
+      fetchDashboardStats()
+    }
+  }, [sessionLoading, isAuthenticated, fetchDashboardStats])
+
+  // Redirect to login if not authenticated after session is determined
+  useEffect(() => {
+    if (!sessionLoading && !isAuthenticated) {
+      router.push("/login?callbackUrl=/dashboard");
+    }
+  }, [sessionLoading, isAuthenticated, router]);
 
   /* ---------------- UI Config ---------------- */
   const wellnessStats = [
@@ -333,6 +346,7 @@ export default function DashboardPage() {
   ]
 
   /* ---------------- Render ---------------- */
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5 dark:to-primary/10 relative overflow-hidden">
 

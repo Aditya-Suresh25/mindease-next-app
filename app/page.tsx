@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import {
@@ -49,6 +50,7 @@ const inter = Inter({
 });
 
 export default function Home() {
+  const router = useRouter();
   const emotions = [
     { value: 0, label: "😔 Down", color: "from-blue-500/50" },
     { value: 25, label: "😊 Content", color: "from-green-500/50" },
@@ -153,11 +155,11 @@ export default function Home() {
 
           {/* Heading: Much bigger (Text-5xl mobile, Text-8xl desktop) */}
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-extrabold font-heading tracking-tight leading-[1.1]">
-            <span className="inline-block bg-gradient-to-r from-primary via-primary/90 to-secondary bg-clip-text text-transparent pb-2">
+            <span className="inline-block bg-gradient-to-r from-[#7eb89e] via-[#6bb5a4] to-[#5ba8a0] bg-clip-text text-transparent pb-2 dark:from-[#8ed4b8] dark:via-[#7cc9b5] dark:to-[#6bbfb2]">
               Find Peace
             </span>
             <br />
-            <span className="inline-block mt-2 bg-gradient-to-b from-foreground to-foreground/90 bg-clip-text text-transparent">
+            <span className="inline-block mt-2 bg-gradient-to-b from-foreground via-foreground/95 to-foreground/85 bg-clip-text text-transparent">
               of Mind
             </span>
           </h1>
@@ -265,9 +267,9 @@ export default function Home() {
               </span>
             </div>
 
-            <h2 className="text-5xl md:text-6xl font-extrabold text-foreground mb-8 font-heading">
+            <h2 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-foreground mb-8 font-heading">
               How
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/90 to-secondary ml-3">
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#7eb89e] via-[#6bb5a4] to-[#5ba8a0] dark:from-[#8ed4b8] dark:via-[#7cc9b5] dark:to-[#6bbfb2] ml-2 sm:ml-3">
                 MindEase Works
               </span>
             </h2>
@@ -276,7 +278,7 @@ export default function Home() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 md:gap-12 relative">
             <div className="hidden md:block absolute top-24 left-0 right-0 h-1 bg-gradient-to-r from-primary/30 via-secondary/30 to-primary/30 rounded-full"></div>
 
             {steps.map((step) => (
@@ -288,19 +290,19 @@ export default function Home() {
                 viewport={{ once: true }}
                 className="relative group"
               >
-                <div className="flex flex-col items-center text-center p-6 rounded-3xl transition-colors duration-300 hover:bg-card/30">
+                <div className="flex flex-col items-center text-center p-4 sm:p-6 rounded-3xl transition-colors duration-300 hover:bg-card/30">
                   {/* Number Badge */}
-                  <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mb-8 shadow-xl relative z-10 ${step.numberBg} group-hover:scale-110 transition-transform duration-300`}>
-                    <span className="text-3xl font-bold text-white">{step.number}</span>
+                  <div className={`w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-xl sm:rounded-2xl flex items-center justify-center mb-4 sm:mb-6 md:mb-8 shadow-xl relative z-10 ${step.numberBg} group-hover:scale-110 transition-transform duration-300`}>
+                    <span className="text-xl sm:text-2xl md:text-3xl font-bold text-white">{step.number}</span>
                   </div>
 
                   {/* Icon */}
-                  <div className={`w-24 h-24 bg-card border-2 rounded-3xl flex items-center justify-center mb-8 shadow-lg ${step.iconColors}`}>
-                    {React.createElement(step.icon, { className: 'w-12 h-12' })}
+                  <div className={`w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-card border-2 rounded-2xl sm:rounded-3xl flex items-center justify-center mb-4 sm:mb-6 md:mb-8 shadow-lg ${step.iconColors}`}>
+                    {React.createElement(step.icon, { className: 'w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12' })}
                   </div>
 
-                  <h3 className="text-2xl font-bold text-foreground mb-4 font-heading">{step.title}</h3>
-                  <p className="text-lg text-muted-foreground leading-relaxed">
+                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground mb-2 sm:mb-4 font-heading">{step.title}</h3>
+                  <p className="text-sm sm:text-base md:text-lg text-muted-foreground leading-relaxed max-w-[280px] sm:max-w-none">
                     {step.description}
                   </p>
                 </div>
@@ -400,6 +402,7 @@ export default function Home() {
                 } else {
                   setShowDialog(false);
                   setCurrentStep(0);
+                  router.push("/signup");
                 }
               }}
               className="relative group px-8 h-12 text-lg rounded-full"

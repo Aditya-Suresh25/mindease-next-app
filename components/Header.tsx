@@ -55,7 +55,7 @@ export function Header() {
         {/* Logo Section */}
         <div className="flex items-center gap-8">
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.push(isAuthenticated ? "/dashboard" : "/")}
             className="group flex items-center gap-2 text-xl font-bold tracking-tighter text-primary transition-all active:scale-95"
           >
             <div className="p-1.5 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
