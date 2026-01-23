@@ -7,6 +7,7 @@ export interface IReview extends Document {
   text: string;
   rating?: number; // Optional star rating (1-5)
   consentToPublish: boolean;
+  isAnonymous: boolean; // When true, display "A MindEase User"; when false, show full name
   status: ReviewStatus;
   moderatedBy?: mongoose.Types.ObjectId;
   moderatedAt?: Date;
@@ -39,6 +40,11 @@ const ReviewSchema = new Schema<IReview>(
       type: Boolean, 
       required: true,
       default: false 
+    },
+    isAnonymous: {
+      type: Boolean,
+      required: true,
+      default: true // Default to anonymous for privacy
     },
     status: { 
       type: String, 

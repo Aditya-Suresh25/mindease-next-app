@@ -68,7 +68,7 @@ export function ZenGarden() {
   const handleEnd = () => setIsDrawing(false);
 
   return (
-    <div className="flex flex-col h-[100dvh] sm:h-[600px] w-full bg-[#1b241e] overflow-hidden">
+    <div className="flex flex-col h-full min-h-[400px] w-full bg-[#1b241e] overflow-hidden">
       
       {/* --- CLEAN HEADER (No Actions here to avoid overlap) --- */}
       <div className="px-6 py-6 bg-black/20 backdrop-blur-md shrink-0 border-b border-white/5">

@@ -70,7 +70,7 @@ export const DailySpark = () => {
     }
 
     return (
-        <div className="relative w-full h-[100dvh] sm:h-[500px] bg-gradient-to-b from-amber-50 to-orange-100 sm:rounded-3xl overflow-hidden flex flex-col items-center justify-center">
+        <div className="relative w-full h-full min-h-[400px] bg-gradient-to-b from-amber-50 to-orange-100 sm:rounded-3xl overflow-hidden flex flex-col items-center justify-center">
             
             {/* --- COMPACT MOBILE HEADER --- */}
             <div className="absolute top-12 sm:top-8 left-0 w-full text-center z-10 px-6 space-y-1">

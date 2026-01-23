@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { useState, useEffect, useMemo, useRef, useCallback } from "react"
+import { motion, AnimatePresence, useMotionValue, useTransform, animate, PanInfo } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Card, CardContent } from "@/components/ui/card"
@@ -54,11 +54,12 @@ const activityIcons: Record<string, React.ElementType> = {
   "daily-spark": Zap,
 }
 
-const MOODS = [
-  { emoji: "😔", label: "Anxious", category: "relaxation" },
-  { emoji: "🧘", label: "Restless", category: "grounding" },
-  { emoji: "⚡", label: "Energetic", category: "expression" },
-  { emoji: "☁️", label: "Foggy", category: "cognitive" },
+const CATEGORIES = [
+  { id: "all", emoji: "✨", label: "All" },
+  { id: "relaxation", emoji: "😔", label: "Anxious" },
+  { id: "grounding", emoji: "🧘", label: "Restless" },
+  { id: "expression", emoji: "⚡", label: "Energetic" },
+  { id: "cognitive", emoji: "☁️", label: "Foggy" },
 ]
 
 export function AllActivities({ open, onOpenChange }: AllActivitiesProps) {
@@ -68,7 +69,26 @@ export function AllActivities({ open, onOpenChange }: AllActivitiesProps) {
   const [selectedActivity, setSelectedActivity] = useState<string | null>(null)
   const [showGame, setShowGame] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState<string>("all")
+  const [activeTabIndex, setActiveTabIndex] = useState(0)
+  const activeTab = CATEGORIES[activeTabIndex]?.id || "all"
+  const containerRef = useRef<HTMLDivElement>(null)
+  const dragX = useMotionValue(0)
+
+  // Swipe to change category
+  const handleDragEnd = useCallback((_: any, info: PanInfo) => {
+    const threshold = 50
+    const velocity = info.velocity.x
+    const offset = info.offset.x
+
+    if (offset < -threshold || velocity < -500) {
+      // Swipe left -> next category
+      setActiveTabIndex(prev => Math.min(prev + 1, CATEGORIES.length - 1))
+    } else if (offset > threshold || velocity > 500) {
+      // Swipe right -> previous category
+      setActiveTabIndex(prev => Math.max(prev - 1, 0))
+    }
+    animate(dragX, 0, { type: "spring", stiffness: 300, damping: 30 })
+  }, [])
 
   useEffect(() => {
     if (open) fetchActivities()
@@ -97,6 +117,11 @@ export function AllActivities({ open, onOpenChange }: AllActivitiesProps) {
       return matchesSearch && matchesTab
     })
   }, [activities, searchQuery, activeTab])
+
+  const setActiveTab = (tabId: string) => {
+    const index = CATEGORIES.findIndex(c => c.id === tabId)
+    if (index !== -1) setActiveTabIndex(index)
+  }
 
   const renderGame = () => {
     switch (selectedActivity) {
@@ -142,55 +167,71 @@ export function AllActivities({ open, onOpenChange }: AllActivitiesProps) {
 
             {/* Scrollable Filter Chips */}
             <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide snap-x">
-              <button
-                onClick={() => setActiveTab("all")}
-                className={cn(
-                  "px-4 py-2 rounded-full border text-xs font-bold transition-all shrink-0 snap-start",
-                  activeTab === "all" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"
-                )}
-              >
-                All
-              </button>
-              {MOODS.map((mood) => (
+              {CATEGORIES.map((cat) => (
                 <button
-                  key={mood.label}
-                  onClick={() => setActiveTab(mood.category === activeTab ? "all" : mood.category)}
+                  key={cat.id}
+                  onClick={() => setActiveTab(cat.id)}
                   className={cn(
                     "flex items-center gap-2 px-4 py-2 rounded-full border transition-all shrink-0 snap-start",
-                    activeTab === mood.category ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"
+                    activeTab === cat.id ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"
                   )}
                 >
-                  <span className="text-base">{mood.emoji}</span>
-                  <span className="text-xs font-bold">{mood.label}</span>
+                  <span className="text-base">{cat.emoji}</span>
+                  <span className="text-xs font-bold">{cat.label}</span>
                 </button>
+              ))}
+            </div>
+            {/* Swipe indicator */}
+            <div className="flex justify-center gap-1.5 pt-2">
+              {CATEGORIES.map((cat, idx) => (
+                <div
+                  key={cat.id}
+                  className={cn(
+                    "h-1 rounded-full transition-all duration-300",
+                    idx === activeTabIndex ? "w-4 bg-primary" : "w-1 bg-muted-foreground/30"
+                  )}
+                />
               ))}
             </div>
           </header>
 
-          {/* --- DENSE ACTIVITY GRID --- */}
-          <main className="flex-1 overflow-y-auto p-4 bg-muted/10">
+          {/* --- SWIPEABLE ACTIVITY GRID --- */}
+          <motion.main 
+            ref={containerRef}
+            className="flex-1 overflow-y-auto p-4 bg-muted/10 touch-pan-y"
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.2}
+            onDragEnd={handleDragEnd}
+            style={{ x: dragX }}
+          >
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-20 gap-3">
                 <Loader2 className="animate-spin text-primary h-8 w-8" />
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Syncing Sanctuary...</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3 pb-24">
-                <AnimatePresence mode="popLayout">
-                  {filteredActivities.map((activity, idx) => (
-                    <ActivityCard 
-                      key={activity.id} 
-                      activity={activity} 
-                      isSuggested={suggestedIds.includes(activity.id)}
-                      onClick={() => {
-                        setSelectedActivity(activity.id)
-                        setShowGame(true)
-                      }}
-                      idx={idx}
-                    />
-                  ))}
-                </AnimatePresence>
-              </div>
+              <motion.div 
+                key={activeTab}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2 }}
+                className="grid grid-cols-2 gap-3 pb-24"
+              >
+                {filteredActivities.map((activity, idx) => (
+                  <ActivityCard 
+                    key={activity.id} 
+                    activity={activity} 
+                    isSuggested={suggestedIds.includes(activity.id)}
+                    onClick={() => {
+                      setSelectedActivity(activity.id)
+                      setShowGame(true)
+                    }}
+                    idx={idx}
+                  />
+                ))}
+              </motion.div>
             )}
 
             {!isLoading && filteredActivities.length === 0 && (
@@ -199,23 +240,37 @@ export function AllActivities({ open, onOpenChange }: AllActivitiesProps) {
                 <p className="text-sm font-medium">No sessions found</p>
               </div>
             )}
-          </main>
+          </motion.main>
         </DialogContent>
       </Dialog>
 
       {/* --- FULLSCREEN PLAYER --- */}
-      <Dialog open={showGame} onOpenChange={setShowGame}>
-        <DialogContent className="max-w-none w-screen h-[100dvh] p-0 border-none rounded-none bg-black overflow-hidden flex flex-col z-[100]">
-          <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between bg-gradient-to-b from-black/90 to-transparent z-[110]">
-            <Button variant="ghost" size="icon" onClick={() => setShowGame(false)} className="text-white bg-white/10 hover:bg-white/20 rounded-full h-10 w-10">
+      <Dialog open={showGame} onOpenChange={(open) => {
+        if (!open) {
+          setShowGame(false)
+          // Delay clearing to prevent jitter
+          setTimeout(() => setSelectedActivity(null), 150)
+        }
+      }}>
+        <DialogContent 
+          showCloseButton={false}
+          className="max-w-none w-screen h-[100dvh] p-0 border-none rounded-none bg-black overflow-hidden flex flex-col z-[100]"
+        >
+          <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between bg-gradient-to-b from-black/90 to-transparent z-[110] pointer-events-none">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setShowGame(false)} 
+              className="text-white bg-white/10 hover:bg-white/20 rounded-full h-10 w-10 pointer-events-auto"
+            >
               <X className="h-6 w-6" />
             </Button>
-            <Badge className="bg-primary/20 text-primary border-primary/30 backdrop-blur-md px-4 py-1">
+            <Badge className="bg-primary/20 text-primary border-primary/30 backdrop-blur-md px-4 py-1 pointer-events-auto">
               Live Session
             </Badge>
             <div className="w-10" />
           </div>
-          <div className="flex-1 touch-none">
+          <div className="flex-1 min-h-0 overflow-hidden">
             {renderGame()}
           </div>
         </DialogContent>

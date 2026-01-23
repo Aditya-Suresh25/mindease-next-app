@@ -34,7 +34,8 @@ import {
   Zap,
   TrendingUp,
   RefreshCw,
-  PhoneCall
+  PhoneCall,
+  Star
 } from "lucide-react"
 
 // Feature Components
@@ -43,6 +44,7 @@ import { MoodForm } from "@/components/mood/mood-form"
 import { ActivityLogger } from "@/components/activities/activity-logger"
 import { AllActivities } from "@/components/activities/all-activities"
 import { DailyQuote } from "@/components/quote/daily-quote"
+import { ReviewPrompt } from "@/components/review/review-prompt"
 
 // Charts
 import {
@@ -76,6 +78,7 @@ export default function DashboardPage() {
   const [showMoodModal, setShowMoodModal] = useState(false)
   const [showActivityLogger, setShowActivityLogger] = useState(false)
   const [showAllActivities, setShowAllActivities] = useState(false)
+  const [showReviewModal, setShowReviewModal] = useState(false)
   
   // Navigation loading states for slow actions
   const [isNavigatingToTherapy, setIsNavigatingToTherapy] = useState(false)
@@ -342,6 +345,18 @@ export default function DashboardPage() {
         setIsNavigatingToReflections(true)
         router.push("/reflections")
       },
+    },
+    {
+      title: "Share Feedback",
+      description: "Leave a review",
+      icon: Star,
+      iconColor: "text-amber-500 dark:text-amber-400",
+      gradientFrom: "from-amber-500/15",
+      gradientTo: "to-yellow-500/10",
+      hoverGradient: "hover:from-amber-500/25 hover:to-yellow-500/15",
+      borderColor: "border-amber-300/60 dark:border-amber-500/35",
+      iconBg: "bg-amber-100 dark:bg-amber-500/30",
+      onClick: () => setShowReviewModal(true),
     },
   ]
 
@@ -747,6 +762,12 @@ export default function DashboardPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Review Modal */}
+      <ReviewPrompt
+        isOpen={showReviewModal}
+        onComplete={() => setShowReviewModal(false)}
+      />
     </div>
   )
 }

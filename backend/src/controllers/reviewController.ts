@@ -44,7 +44,7 @@ export const canSubmitReview = async (req: Request, res: Response) => {
 export const submitReview = async (req: Request, res: Response) => {
   try {
     const userId = req.user._id;
-    const { text, consentToPublish, rating } = req.body;
+    const { text, consentToPublish, rating, isAnonymous } = req.body;
 
     // Validate input
     if (!text || typeof text !== "string") {
@@ -87,11 +87,12 @@ export const submitReview = async (req: Request, res: Response) => {
       });
     }
 
-    // Create the review
+    // Create the review with isAnonymous flag (defaults to true if not provided)
     const review = new Review({
       userId,
       text: trimmedText,
       consentToPublish,
+      isAnonymous: isAnonymous !== undefined ? isAnonymous : true,
       rating: rating !== undefined && rating !== null ? Number(rating) : undefined,
       status: "pending",
     });
@@ -111,6 +112,7 @@ export const submitReview = async (req: Request, res: Response) => {
         text: review.text,
         rating: review.rating,
         consentToPublish: review.consentToPublish,
+        isAnonymous: review.isAnonymous,
         status: review.status,
         createdAt: review.createdAt,
       },
@@ -162,7 +164,7 @@ export const getTestimonials = async (req: Request, res: Response) => {
       },
       // Randomly sample reviews for variety
       { $sample: { size: limit } },
-      // Join with users to get first name only
+      // Join with users to get name
       {
         $lookup: {
           from: "users",
@@ -172,23 +174,21 @@ export const getTestimonials = async (req: Request, res: Response) => {
         },
       },
       { $unwind: "$user" },
-      // Project only safe, anonymized fields
+      // Project only safe fields - use isAnonymous to determine name display
       {
         $project: {
           _id: 1,
           text: 1,
           rating: 1,
-          // Only include first name or anonymize completely
+          // If isAnonymous is true (or not set), show "A MindEase User"
+          // If isAnonymous is false, show the user's full name
           authorLabel: {
             $cond: {
-              if: { $gt: [{ $strLenCP: "$user.name" }, 0] },
-              then: {
-                $concat: [
-                  { $arrayElemAt: [{ $split: ["$user.name", " "] }, 0] },
-                  ", MindEase user",
-                ],
+              if: { $ne: ["$isAnonymous", false] }, // Default to anonymous if not explicitly false
+              then: "A MindEase User",
+              else: {
+                $concat: ["$user.name", ", MindEase user"],
               },
-              else: "A MindEase user",
             },
           },
         },

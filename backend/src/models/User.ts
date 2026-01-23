@@ -7,6 +7,7 @@ export interface IUser extends Document {
   email: string;
   password: string;
   role: UserRole;
+  handle: string; // Unique @handle for public identification
   googleId?: string;
   avatar?: string;
   notifications: {
@@ -36,6 +37,14 @@ const UserSchema = new Schema<IUser>(
     email: { type: String, required: true, unique: true },
     password: { type: String, required: false },
     role: { type: String, enum: ["user", "admin"], default: "user" },
+    handle: { 
+      type: String, 
+      unique: true, 
+      sparse: true, // Allow null values while maintaining uniqueness
+      lowercase: true,
+      trim: true,
+      match: [/^[a-z0-9_]+$/, 'Handle can only contain lowercase letters, numbers, and underscores']
+    },
     googleId: { type: String, sparse: true },
     avatar: { type: String },
     notifications: {

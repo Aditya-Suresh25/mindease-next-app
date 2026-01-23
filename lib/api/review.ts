@@ -76,7 +76,8 @@ export const canSubmitReview = async (): Promise<{
 export const submitReview = async (
   text: string,
   consentToPublish: boolean,
-  rating?: number | null
+  rating?: number | null,
+  isAnonymous: boolean = true
 ): Promise<{
   success: boolean;
   review?: Review;
@@ -87,7 +88,7 @@ export const submitReview = async (
     const response = await fetch(`${API_BASE}/api/reviews`, {
       method: "POST",
       headers: getAuthHeaders(),
-      body: JSON.stringify({ text, consentToPublish, rating }),
+      body: JSON.stringify({ text, consentToPublish, rating, isAnonymous }),
     });
 
     const data = await response.json();

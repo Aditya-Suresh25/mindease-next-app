@@ -27,15 +27,18 @@ import { toast } from "sonner";
 import { useTheme } from "next-themes";
 import { API_BASE, getAuthHeaders } from "@/lib/api/base";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useSession } from "@/lib/contexts/session-context";
 
 export default function SettingsPage() {
     const router = useRouter();
+    const { initiateLogout } = useSession();
 
     const { theme, setTheme } = useTheme();
 
     const [profile, setProfile] = useState({
         name: "",
         email: "",
+        handle: "",
         notifications: {
             email: true,
             push: true,
@@ -110,12 +113,9 @@ export default function SettingsPage() {
     };
 
     const handleLogout = async () => {
-        try {
-            await fetch(`${API_BASE}/auth/logout`, { method: "POST", headers: getAuthHeaders() });
-        } catch (e) { }
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        router.push("/login");
+        // Use the session context's initiateLogout which properly clears all cookies,
+        // shows review prompt if eligible, and redirects to login
+        await initiateLogout();
     };
 
     if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
@@ -169,6 +169,22 @@ export default function SettingsPage() {
                                         value={profile.name}
                                         onChange={(e) => setProfile({ ...profile, name: e.target.value })}
                                     />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="handle">Public Handle</Label>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-muted-foreground">@</span>
+                                        <Input
+                                            id="handle"
+                                            value={profile.handle || ""}
+                                            onChange={(e) => setProfile({ ...profile, handle: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "") })}
+                                            placeholder="your_handle"
+                                            className="flex-1"
+                                        />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        This is your unique public identifier. Only lowercase letters, numbers, and underscores allowed.
+                                    </p>
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="email">Email Address</Label>

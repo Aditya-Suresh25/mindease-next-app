@@ -178,7 +178,7 @@ export const googleAuth = async (req: Request, res: Response) => {
 
 export const updateProfile = async (req: any, res: any) => {
   try {
-    const { name, notifications, privacySettings, preferences } = req.body;
+    const { name, handle, notifications, privacySettings, preferences } = req.body;
     const userId = req.user._id;
 
     const user = await User.findById(userId);
@@ -187,6 +187,22 @@ export const updateProfile = async (req: any, res: any) => {
     }
 
     if (name) user.name = name;
+    
+    // Handle unique handle/slug validation
+    if (handle !== undefined) {
+      if (handle === "") {
+        // Use $unset to remove the handle field
+        await User.updateOne({ _id: userId }, { $unset: { handle: 1 } });
+      } else {
+        // Check if handle is already taken by another user
+        const existingUser = await User.findOne({ handle: handle.toLowerCase(), _id: { $ne: userId } });
+        if (existingUser) {
+          return res.status(400).json({ message: "This handle is already taken" });
+        }
+        user.handle = handle.toLowerCase();
+      }
+    }
+    
     if (notifications) user.notifications = { ...user.notifications, ...notifications };
     if (privacySettings) user.privacySettings = { ...user.privacySettings, ...privacySettings };
     if (preferences) user.preferences = { ...user.preferences, ...preferences };
@@ -198,6 +214,7 @@ export const updateProfile = async (req: any, res: any) => {
         _id: user._id,
         name: user.name,
         email: user.email,
+        handle: user.handle,
         notifications: user.notifications,
         privacySettings: user.privacySettings,
         preferences: user.preferences

@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Eraser, CloudRain, Wind } from "lucide-react";
+import { Wind } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const RainPainter = () => {
@@ -89,7 +89,7 @@ export const RainPainter = () => {
     return (
         <div 
             ref={containerRef}
-            className="relative w-full h-[100dvh] sm:h-[600px] bg-slate-950 sm:rounded-[3rem] overflow-hidden shadow-2xl group"
+            className="relative w-full h-full bg-slate-950 sm:rounded-[3rem] overflow-hidden shadow-2xl group"
         >
             {/* 1. Background View (Outside) */}
             <motion.div
@@ -117,17 +117,6 @@ export const RainPainter = () => {
                 onTouchMove={draw}
                 className="absolute inset-0 z-20 cursor-crosshair touch-none"
             />
-
-            {/* 4. Interactive UI Elements */}
-            <div className="absolute top-12 left-6 right-6 z-30 pointer-events-none flex justify-between items-start">
-                <div className="bg-black/40 backdrop-blur-2xl p-4 rounded-[2rem] border border-white/10 text-white max-w-[200px]">
-                    <div className="flex items-center gap-2 mb-1">
-                        <CloudRain className="w-4 h-4 text-sky-400" />
-                        <h3 className="text-sm font-black uppercase tracking-widest">Rain Painter</h3>
-                    </div>
-                    <p className="text-[10px] font-bold text-white/60 leading-tight">Wipe the condensation to reveal the world</p>
-                </div>
-            </div>
 
             {/* Action Button - Large for Mobile Thumb */}
             <div className="absolute bottom-10 right-6 z-30">

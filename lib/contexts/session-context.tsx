@@ -87,10 +87,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
     } finally {
       localStorage.removeItem("token");
-      // Clear auth cookie
+      // Clear all auth cookies
       document.cookie = "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      document.cookie = "next-auth.session-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      document.cookie = "__Secure-next-auth.session-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
       setUser(null);
-      router.push("/");
+      router.push("/login");
       router.refresh();
     }
   };
@@ -109,10 +111,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
     } finally {
       localStorage.removeItem("token");
-      // Clear auth cookie
+      // Clear all auth cookies
       document.cookie = "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      document.cookie = "next-auth.session-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      document.cookie = "__Secure-next-auth.session-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
       setUser(null);
-      router.push("/");
+      router.push("/login");
       router.refresh();
     }
   }, [router]);

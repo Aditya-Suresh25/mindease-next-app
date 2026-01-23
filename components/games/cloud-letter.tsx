@@ -34,7 +34,7 @@ export const CloudLetter = () => {
     };
 
     return (
-        <div className="flex flex-col items-center justify-between h-[100dvh] sm:h-[600px] w-full p-4 sm:p-8 relative overflow-hidden bg-gradient-to-b from-sky-50 via-blue-50 to-indigo-100 sm:rounded-[3rem] shadow-2xl">
+        <div className="flex flex-col items-center justify-between h-full min-h-[400px] w-full p-4 sm:p-8 relative overflow-hidden bg-gradient-to-b from-sky-50 via-blue-50 to-indigo-100 sm:rounded-[3rem] shadow-2xl">
             
             {/* Subtle Animated Background Elements */}
             <div className="absolute inset-0 pointer-events-none opacity-30">

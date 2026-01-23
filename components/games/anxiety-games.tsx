@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Gamepad2, Music2, Sparkles, ChevronRight, Clock } from "lucide-react";
+import { Gamepad2, Music2, Sparkles, ChevronRight, Clock, Maximize2, Minimize2, X } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 // Game Components
 import { BreathingGame } from "./breathing-games";
@@ -42,6 +43,7 @@ interface AnxietyGamesProps {
 export const AnxietyGames = ({ onGamePlayed, onViewAllActivities }: AnxietyGamesProps) => {
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
   const [showGame, setShowGame] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [dynamicGames, setDynamicGames] = useState(ACTIVITIES);
   const [aiReason, setAiReason] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -76,9 +78,22 @@ export const AnxietyGames = ({ onGamePlayed, onViewAllActivities }: AnxietyGames
   const handleGameStart = async (gameId: string) => {
     setSelectedGame(gameId);
     setShowGame(true);
+    setIsFullscreen(false); // Reset fullscreen state when opening new game
     if (onGamePlayed) {
       await onGamePlayed(gameId, dynamicGames.find((g) => g.id === gameId)?.description || "");
     }
+  };
+
+  const handleCloseGame = () => {
+    // Stagger state updates to prevent jitter on mobile
+    setShowGame(false);
+    setIsFullscreen(false);
+    // Delay clearing selectedGame to allow exit animation to complete
+    setTimeout(() => setSelectedGame(null), 150);
+  };
+
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
   };
 
   const renderGame = () => {
@@ -191,10 +206,22 @@ export const AnxietyGames = ({ onGamePlayed, onViewAllActivities }: AnxietyGames
         </AnimatePresence>
       </div>
 
-      <Dialog open={showGame} onOpenChange={setShowGame}>
-        <DialogContent className="max-w-4xl h-[85vh] p-0 overflow-hidden bg-background/95 backdrop-blur-xl border-primary/20 rounded-[2.5rem]">
-          <DialogHeader className="p-6 border-b bg-muted/30">
-            <DialogTitle className="text-2xl flex items-center gap-3">
+      <Dialog open={showGame} onOpenChange={handleCloseGame}>
+        <DialogContent 
+          showCloseButton={false}
+          className={cn(
+            "p-0 overflow-hidden bg-background/95 backdrop-blur-xl border-primary/20 transition-all duration-300 flex flex-col",
+            // Mobile: full screen experience
+            "max-w-full h-[100dvh] rounded-none sm:rounded-[2rem]",
+            // Desktop: fixed aspect ratio window or fullscreen
+            isFullscreen 
+              ? "sm:max-w-full sm:h-[100dvh] sm:rounded-none" 
+              : "sm:max-w-3xl sm:h-auto sm:aspect-[4/3] sm:max-h-[80vh]"
+          )}
+        >
+          {/* Custom Header with Fullscreen Toggle */}
+          <div className="flex items-center justify-between p-4 sm:p-6 border-b bg-muted/30 shrink-0">
+            <DialogTitle className="text-xl sm:text-2xl flex items-center gap-3">
               {dynamicGames.find((g) => g.id === selectedGame)?.icon && (
                 <div className={`p-2 rounded-lg ${dynamicGames.find((g) => g.id === selectedGame)?.bgColor}`}>
                    {/* Icon logic would go here */}
@@ -202,8 +229,33 @@ export const AnxietyGames = ({ onGamePlayed, onViewAllActivities }: AnxietyGames
               )}
               {dynamicGames.find((g) => g.id === selectedGame)?.title}
             </DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 h-full overflow-y-auto p-8 flex items-center justify-center">
+            <div className="flex items-center gap-2">
+              {/* Fullscreen toggle - hidden on mobile */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleFullscreen}
+                className="hidden sm:flex h-9 w-9 rounded-full hover:bg-primary/10"
+                title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+              >
+                {isFullscreen ? (
+                  <Minimize2 className="h-5 w-5" />
+                ) : (
+                  <Maximize2 className="h-5 w-5" />
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleCloseGame}
+                className="h-9 w-9 rounded-full hover:bg-destructive/10 hover:text-destructive"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+          {/* Game container - no scroll, no extra padding for canvas games */}
+          <div className="flex-1 min-h-0 overflow-hidden">
             {renderGame()}
           </div>
         </DialogContent>

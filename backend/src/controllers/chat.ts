@@ -175,7 +175,7 @@ export const sendMessage = async (req: Request, res: Response) => {
       "isCrisis": boolean,
       "recommendedApproach": "string",
       "progressIndicators": ["string"],
-      "suggestedResponses": ["string (max 3 short user reply options)"]
+      "suggestedResponses": ["string (max 3 short user reply options - these should be what the USER might say next, written from first-person perspective like 'I want to try that' or 'Can you explain more?' - NOT what the therapist would say)"]
     }`;
 
     let analysis: any = null;

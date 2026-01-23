@@ -96,7 +96,7 @@ export function OceanWaves() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-between h-[100dvh] sm:h-[500px] w-full py-12 px-6 bg-gradient-to-b from-blue-50/50 to-background sm:justify-center sm:space-y-12">
+    <div className="flex flex-col items-center justify-between h-full min-h-[400px] w-full py-8 px-6 bg-gradient-to-b from-blue-50/50 to-background sm:justify-center sm:gap-8">
       
       {/* --- TOP INFO --- */}
       <div className="text-center space-y-1">

@@ -21,8 +21,11 @@ import {
   Sparkles, 
   CheckCircle2,
   Loader2,
-  X
+  X,
+  ShieldCheck,
+  Lock
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ReviewPromptProps {
   isOpen: boolean;
@@ -32,7 +35,7 @@ interface ReviewPromptProps {
 export function ReviewPrompt({ isOpen, onComplete }: ReviewPromptProps) {
   const [reviewText, setReviewText] = useState("");
   const [rating, setRating] = useState<number | null>(null);
-  const [consentToPublish, setConsentToPublish] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(true); // Default to true for wellness
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showThankYou, setShowThankYou] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,64 +44,65 @@ export function ReviewPrompt({ isOpen, onComplete }: ReviewPromptProps) {
   const minLength = 10;
 
   const handleSubmit = async () => {
-    if (reviewText.trim().length < minLength) {
-      setError(`Please share at least ${minLength} characters`);
+    if (reviewText.trim().length > 0 && reviewText.trim().length < minLength) {
+      setError(`Your reflection is a bit short. Please share at least ${minLength} characters.`);
       return;
     }
 
     setError(null);
     setIsSubmitting(true);
 
-    const result = await submitReview(reviewText.trim(), consentToPublish, rating);
+    // Send isAnonymous: when toggle is ON, user wants privacy (anonymous)
+    // consentToPublish is always true when submitting (user consents to share)
+    const result = await submitReview(reviewText.trim(), true, rating, isAnonymous);
 
     setIsSubmitting(false);
 
     if (result.success) {
       setShowThankYou(true);
-      // Show thank you message briefly, then complete
       setTimeout(() => {
         onComplete();
-      }, 2000);
+      }, 2200);
     } else {
-      // If there's an error, still allow logout to proceed
-      setError(result.error || "Unable to save feedback, but you can still log out.");
+      setError(result.error || "Something went wrong, but your peace is more important. You can still proceed.");
     }
   };
 
   const handleSkip = async () => {
     setIsSubmitting(true);
-    // Dismiss the prompt to update the cooldown timer
     await dismissReviewPrompt();
     setIsSubmitting(false);
-    onComplete();
-  };
-
-  const handleClose = async () => {
-    // Don't update cooldown on close, just proceed with logout
     onComplete();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={() => {}}>
       <DialogContent 
-        className="sm:max-w-[480px] bg-card/95 backdrop-blur-xl border-primary/10"
+        className="sm:max-w-[500px] bg-card/98 backdrop-blur-2xl border-primary/5 shadow-2xl overflow-hidden rounded-[2rem]"
         showCloseButton={false}
       >
+        {/* Top decorative gradient */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20" />
+
         <AnimatePresence mode="wait">
           {showThankYou ? (
             <motion.div
               key="thank-you"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex flex-col items-center justify-center py-8 text-center"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col items-center justify-center py-12 text-center"
             >
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                <CheckCircle2 className="w-8 h-8 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Thank you!</h3>
-              <p className="text-muted-foreground text-sm">
-                Your feedback means a lot to us.
+              <motion.div 
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", damping: 12 }}
+                className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6"
+              >
+                <CheckCircle2 className="w-10 h-10 text-primary" />
+              </motion.div>
+              <h3 className="text-2xl font-bold mb-2 tracking-tight">Reflection Saved</h3>
+              <p className="text-muted-foreground text-sm max-w-[280px]">
+                Thank you for helping us grow. Wishing you a peaceful journey ahead.
               </p>
             </motion.div>
           ) : (
@@ -107,39 +111,39 @@ export function ReviewPrompt({ isOpen, onComplete }: ReviewPromptProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              className="relative"
             >
-              {/* Close button */}
-              <button
-                onClick={handleClose}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onComplete}
                 disabled={isSubmitting}
-                className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+                className="absolute -right-2 -top-2 rounded-full hover:bg-muted"
               >
                 <X className="h-4 w-4" />
-                <span className="sr-only">Close</span>
-              </button>
+              </Button>
 
-              <DialogHeader className="pb-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Heart className="w-5 h-5 text-primary" />
+              <DialogHeader className="space-y-3 mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center rotate-3">
+                    <Heart className="w-6 h-6 text-primary fill-primary/10" />
                   </div>
                   <div>
-                    <DialogTitle className="text-lg">
-                      Before you go...
+                    <DialogTitle className="text-xl font-bold tracking-tight">
+                      Pause & Reflect
                     </DialogTitle>
+                    <DialogDescription className="text-sm">
+                      How has your journey with MindEase been?
+                    </DialogDescription>
                   </div>
                 </div>
-                <DialogDescription className="text-sm leading-relaxed">
-                  We'd love to hear how MindEase has felt for you recently. 
-                  Did it help you pause, reflect, or feel a little more supported?
-                </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-4 py-2">
-                {/* Star Rating */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">
-                    How would you rate your experience?
+              <div className="space-y-6">
+                {/* Star Rating Section */}
+                <div className="space-y-3 p-4 rounded-2xl bg-muted/30 border border-border/50">
+                  <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    Your Overall Feeling
                   </Label>
                   <StarRating
                     value={rating}
@@ -147,18 +151,19 @@ export function ReviewPrompt({ isOpen, onComplete }: ReviewPromptProps) {
                     size="lg"
                     disabled={isSubmitting}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {rating ? ["", "Not for me", "Could be better", "Pretty good", "Really helpful", "Life-changing"][rating] : "Tap a star to rate (optional)"}
+                  <p className="text-xs font-medium text-primary/80 animate-in fade-in slide-in-from-left-1">
+                    {rating ? ["", "Needs work", "Getting there", "Feeling better", "Very helpful", "Truly transformative"][rating] : "Select a star to rate"}
                   </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="review" className="text-sm font-medium">
-                    Share a brief reflection (optional)
+                {/* Text Area */}
+                <div className="space-y-3">
+                  <Label htmlFor="review" className="text-sm font-semibold">
+                    A brief reflection <span className="text-muted-foreground font-normal">(optional)</span>
                   </Label>
                   <Textarea
                     id="review"
-                    placeholder="e.g., 'MindEase helped me take a moment to breathe when I felt overwhelmed...'"
+                    placeholder="MindEase helped me find a moment of calm today..."
                     value={reviewText}
                     onChange={(e) => {
                       setReviewText(e.target.value);
@@ -166,86 +171,87 @@ export function ReviewPrompt({ isOpen, onComplete }: ReviewPromptProps) {
                     }}
                     maxLength={maxLength}
                     disabled={isSubmitting}
-                    className="min-h-[100px] resize-none bg-background/50 border-primary/10 focus:border-primary/30"
+                    className="min-h-[120px] rounded-xl border-muted bg-background/50 focus:ring-primary/20 transition-all resize-none"
                   />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>1-3 sentences is perfect</span>
-                    <span className={reviewText.length > maxLength - 50 ? "text-amber-500" : ""}>
-                      {reviewText.length}/{maxLength}
-                    </span>
-                  </div>
                 </div>
 
-                {reviewText.trim().length >= minLength && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    className="flex items-start space-x-3 p-3 rounded-lg bg-primary/5 border border-primary/10"
-                  >
-                    <Switch
-                      id="consent"
-                      checked={consentToPublish}
-                      onCheckedChange={setConsentToPublish}
-                      disabled={isSubmitting}
-                    />
-                    <div className="space-y-1">
-                      <Label 
-                        htmlFor="consent" 
-                        className="text-sm font-medium cursor-pointer"
-                      >
-                        Allow anonymous display
+                {/* --- ENHANCED ANONYMITY TOGGLE --- */}
+                <motion.div 
+                  layout
+                  className={cn(
+                    "relative group p-4 rounded-2xl border transition-all duration-300",
+                    isAnonymous 
+                      ? "bg-primary/[0.03] border-primary/20 shadow-[0_0_15px_rgba(var(--primary),0.05)]" 
+                      : "bg-muted/20 border-border"
+                  )}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        "p-1.5 rounded-lg transition-colors",
+                        isAnonymous ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                      )}>
+                        <Lock className="w-3.5 h-3.5" />
+                      </div>
+                      <Label htmlFor="anonymity" className="text-sm font-bold cursor-pointer">
+                        Privacy Mode
                       </Label>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        Your reflection may appear on our site as a testimonial from 
-                        "A MindEase user" or your first name only. Your email and identity 
-                        will never be shown.
-                      </p>
                     </div>
-                  </motion.div>
-                )}
+                    <Switch
+                      id="anonymity"
+                      checked={isAnonymous}
+                      onCheckedChange={setIsAnonymous}
+                      disabled={isSubmitting}
+                      className="data-[state=checked]:bg-primary"
+                    />
+                  </div>
+                  
+                  <div className="pl-7">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {isAnonymous 
+                        ? "Active: Your name will be displayed as 'A MindEase User'." 
+                        : "Inactive: Your full name will be shown with your feedback."}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-2 text-[10px] text-primary/60 font-medium">
+                      <ShieldCheck className="w-3 h-3" />
+                      Your email and identity details are always private.
+                    </div>
+                  </div>
+                </motion.div>
 
                 {error && (
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="text-sm text-destructive"
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    className="text-xs font-medium text-destructive bg-destructive/5 p-2 rounded-lg border border-destructive/10"
                   >
                     {error}
-                  </motion.p>
+                  </motion.div>
                 )}
               </div>
 
-              <DialogFooter className="flex-row gap-2 sm:gap-2 pt-2">
+              <DialogFooter className="flex-col sm:flex-row gap-3 pt-8">
                 <Button
                   variant="ghost"
                   onClick={handleSkip}
                   disabled={isSubmitting}
-                  className="flex-1 sm:flex-none text-muted-foreground hover:text-foreground"
+                  className="flex-1 rounded-xl text-muted-foreground"
                 >
-                  Skip for now
+                  Maybe later
                 </Button>
                 <Button
                   onClick={handleSubmit}
-                  disabled={isSubmitting || reviewText.trim().length < minLength}
-                  className="flex-1 sm:flex-none gap-2"
+                  disabled={isSubmitting}
+                  className="flex-[2] rounded-xl shadow-lg shadow-primary/10 py-6 text-base font-bold transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
                   {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Saving...
-                    </>
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
                   ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      Share Feedback
-                    </>
+                    <Sparkles className="w-5 h-5 mr-2" />
                   )}
+                  {isSubmitting ? "Saving..." : "Save Reflection"}
                 </Button>
               </DialogFooter>
-
-              <p className="text-[10px] text-center text-muted-foreground mt-4 leading-relaxed">
-                Your feedback helps us improve. We never ask about specific outcomes or diagnoses.
-              </p>
             </motion.div>
           )}
         </AnimatePresence>

@@ -42,12 +42,32 @@ export const LuminaPath = () => {
     const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
 
     const generatePlants = useCallback(() => {
-        const newPlants = Array.from({ length: 8 }).map((_, i) => {
+        // Use grid-based placement to spread plants apart
+        // Divide area into a 4x3 grid and place one plant per cell with randomness
+        const gridCols = 4;
+        const gridRows = 3;
+        const cellWidth = 80 / gridCols; // Leave margins
+        const cellHeight = 70 / gridRows;
+        
+        const positions: { xPct: number; yPct: number }[] = [];
+        for (let row = 0; row < gridRows; row++) {
+            for (let col = 0; col < gridCols; col++) {
+                // Add randomness within each cell
+                const xPct = 10 + col * cellWidth + Math.random() * (cellWidth * 0.6);
+                const yPct = 15 + row * cellHeight + Math.random() * (cellHeight * 0.6);
+                positions.push({ xPct, yPct });
+            }
+        }
+        
+        // Shuffle and pick 10 plants for longer gameplay
+        const shuffled = positions.sort(() => Math.random() - 0.5).slice(0, 10);
+        
+        const newPlants = shuffled.map((pos, i) => {
             const type = PLANT_TYPES[Math.floor(Math.random() * PLANT_TYPES.length)];
             return {
                 id: i,
-                xPct: Math.random() * 75 + 12.5, 
-                yPct: Math.random() * 75 + 12.5,
+                xPct: pos.xPct,
+                yPct: pos.yPct,
                 Icon: type.Icon,
                 color: type.color,
             };
@@ -108,7 +128,7 @@ export const LuminaPath = () => {
     const isComplete = plants.length > 0 && foundIds.length === plants.length;
 
     return (
-        <div className="flex flex-col items-center justify-between h-[100dvh] sm:h-[600px] w-full py-8 px-4 bg-slate-950 sm:bg-transparent">
+        <div className="flex flex-col items-center justify-between h-full min-h-[400px] w-full py-6 px-4 bg-slate-950 sm:bg-transparent">
             
             {/* --- MOBILE HEADER --- */}
             <div className="w-full max-w-md flex justify-between items-center z-50">

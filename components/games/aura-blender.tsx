@@ -22,7 +22,7 @@ export const AuraBlender = () => {
     }, [color1, color2, color3]);
 
     return (
-        <div className="relative h-[100dvh] sm:min-h-[500px] w-full overflow-hidden sm:rounded-3xl border-none sm:border border-slate-100 bg-white">
+        <div className="relative h-full min-h-[400px] w-full overflow-hidden sm:rounded-3xl border-none sm:border border-slate-100 bg-white">
             <motion.div
                 className="absolute inset-0 opacity-80"
                 style={backgroundStyle}
