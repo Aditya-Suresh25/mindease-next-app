@@ -21,6 +21,9 @@ import {
   Shield,
   PhoneCall,
   ArrowRight,
+  ChevronDown,
+  ChevronUp,
+  Brain,
 } from "lucide-react";
 import { RecommendationCard } from "@/components/chat/recommendation-card";
 import { cn } from "@/lib/utils";
@@ -67,6 +70,10 @@ export default function TherapyPage() {
   const [mounted, setMounted] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [userScrolledUp, setUserScrolledUp] = useState(false);
+  
+  // Thinking state for AI transparency
+  const [thinkingText, setThinkingText] = useState<string>("");
+  const [showThinking, setShowThinking] = useState(true);
 
   // Voice States
   const [isSpeaking, setIsSpeaking] = useState<number | null>(null);
@@ -221,11 +228,13 @@ export default function TherapyPage() {
     setMessages((prev) => [...prev, userMsg]);
     setMessage("");
     setIsTyping(true);
+    setThinkingText("Understanding your message...");
     
     // Create session on first message if we're in "new" mode
     let activeSessionId = sessionId;
     if (!sessionId || sessionId === "new") {
       try {
+        setThinkingText("Starting a new conversation...");
         const newId = await createChatSession();
         setSessionId(newId);
         activeSessionId = newId;
@@ -235,12 +244,30 @@ export default function TherapyPage() {
         console.error("Failed to create session", err);
         setMessages((prev) => [...prev, { role: "assistant", content: "Failed to start session. Please try again.", timestamp: new Date() }]);
         setIsTyping(false);
+        setThinkingText("");
         return;
       }
     }
     
     try {
+      setThinkingText("Analyzing your feelings and context...");
+      
+      // Simulate thinking phases for better UX
+      const thinkingPhases = [
+        "Analyzing your feelings and context...",
+        "Considering the best approach...",
+        "Crafting a thoughtful response...",
+      ];
+      
+      let phaseIndex = 0;
+      const thinkingInterval = setInterval(() => {
+        phaseIndex = (phaseIndex + 1) % thinkingPhases.length;
+        setThinkingText(thinkingPhases[phaseIndex]);
+      }, 1500);
+      
       const response = await sendChatMessage(activeSessionId!, userMsg.content);
+      clearInterval(thinkingInterval);
+      
       const parsed = typeof response === "string" ? JSON.parse(response) : response;
 
       // Handle Cooldown
@@ -257,6 +284,9 @@ export default function TherapyPage() {
           technique: parsed.metadata?.technique || "general_support",
           goal: parsed.metadata?.goal || "support",
           progress: parsed.metadata?.progress || [],
+          thinkingSummary: parsed.analysis?.emotionalState 
+            ? `Detected ${parsed.analysis.emotionalState} mood. Using ${parsed.metadata?.technique || "supportive"} approach.`
+            : undefined,
           ...parsed.metadata
         }
       }]);
@@ -265,7 +295,10 @@ export default function TherapyPage() {
       setRefreshSidebar(prev => prev + 1);
     } catch {
       setMessages((prev) => [...prev, { role: "assistant", content: "I'm having trouble responding right now.", timestamp: new Date() }]);
-    } finally { setIsTyping(false); }
+    } finally { 
+      setIsTyping(false); 
+      setThinkingText("");
+    }
   };
 
   // Delete session handler
@@ -488,6 +521,11 @@ export default function TherapyPage() {
                             </Button>
                           </div>
                         )}
+
+                        {/* Thinking Summary - Shows AI's understanding */}
+                        {msg.role === "assistant" && msg.metadata?.thinkingSummary && (
+                          <ThinkingSummary summary={msg.metadata.thinkingSummary} />
+                        )}
                       </div>
                     </div>
                   </motion.article>
@@ -495,12 +533,49 @@ export default function TherapyPage() {
               })
             )}
             {isTyping && (
-              <div className="flex gap-3 items-center ml-2 mb-8">
-                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border border-white/5">
-                  <Loader2 size={14} className="animate-spin text-muted-foreground" />
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col gap-2 ml-2 mb-8"
+              >
+                <div className="flex gap-3 items-center">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center border border-primary/10">
+                    <Brain size={16} className="text-primary animate-pulse" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-medium text-foreground/80">Thinking...</span>
+                    <AnimatePresence mode="wait">
+                      {showThinking && thinkingText && (
+                        <motion.span 
+                          key={thinkingText}
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 5 }}
+                          className="text-xs text-muted-foreground/70 italic"
+                        >
+                          {thinkingText}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
-                <span className="text-xs text-muted-foreground/60 font-medium tracking-wide">Thinking...</span>
-              </div>
+                <button
+                  onClick={() => setShowThinking(!showThinking)}
+                  className="flex items-center gap-1 text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors ml-12 w-fit"
+                >
+                  {showThinking ? (
+                    <>
+                      <ChevronUp size={12} />
+                      Hide thinking
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown size={12} />
+                      Show thinking
+                    </>
+                  )}
+                </button>
+              </motion.div>
             )}
             <div ref={messagesEndRef} className="h-24 shrink-0" />
           </div>
@@ -762,4 +837,41 @@ function SidebarContentComponent({
       </div>
     </div>
   )
+}
+
+// Thinking Summary Component - Shows what the AI understood
+function ThinkingSummary({ summary }: { summary: string }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  return (
+    <motion.div 
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      className="mt-2"
+    >
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 hover:text-muted-foreground transition-colors group"
+      >
+        <Brain size={12} className="text-primary/60 group-hover:text-primary" />
+        <span className="font-medium">AI Insight</span>
+        {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+      </button>
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="mt-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/10 text-xs text-muted-foreground leading-relaxed">
+              <span className="text-primary/70 font-medium">Understanding: </span>
+              {summary}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
 }

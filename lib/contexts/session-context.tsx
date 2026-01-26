@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 interface User {
@@ -15,7 +15,11 @@ interface SessionContextType {
   loading: boolean;
   isAuthenticated: boolean;
   logout: () => Promise<void>;
+  initiateLogout: () => Promise<void>;
+  completeLogout: () => Promise<void>;
   checkSession: () => Promise<void>;
+  showReviewPrompt: boolean;
+  setShowReviewPrompt: (show: boolean) => void;
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -23,6 +27,7 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showReviewPrompt, setShowReviewPrompt] = useState(false);
   const router = useRouter();
 
   const generateAvatar = (name: string) => {
@@ -82,10 +87,58 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
     } finally {
       localStorage.removeItem("token");
+      // Clear all auth cookies
+      document.cookie = "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      document.cookie = "next-auth.session-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      document.cookie = "__Secure-next-auth.session-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
       setUser(null);
-      router.push("/");
+      router.push("/login");
+      router.refresh();
     }
   };
+
+  // Complete logout without checking for review (called after review prompt)
+  const completeLogout = useCallback(async () => {
+    setShowReviewPrompt(false);
+    try {
+      const token = localStorage.getItem("token");
+      if (token) {
+        const { API_BASE, getAuthHeaders } = await import("@/lib/api/base");
+        await fetch(`${API_BASE}/auth/logout`, {
+          method: "POST",
+          headers: getAuthHeaders(),
+        });
+      }
+    } finally {
+      localStorage.removeItem("token");
+      // Clear all auth cookies
+      document.cookie = "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      document.cookie = "next-auth.session-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      document.cookie = "__Secure-next-auth.session-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      setUser(null);
+      router.push("/login");
+      router.refresh();
+    }
+  }, [router]);
+
+  // Initiate logout - checks if we should show review prompt first
+  const initiateLogout = useCallback(async () => {
+    try {
+      const { canSubmitReview } = await import("@/lib/api/review");
+      const result = await canSubmitReview();
+      
+      if (result.success && result.canSubmit) {
+        // User is eligible for review prompt
+        setShowReviewPrompt(true);
+      } else {
+        // Skip review prompt and logout directly
+        await completeLogout();
+      }
+    } catch {
+      // If check fails, just proceed with logout
+      await completeLogout();
+    }
+  }, [completeLogout]);
 
   useEffect(() => {
     checkSession();
@@ -98,7 +151,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         loading,
         isAuthenticated: !!user,
         logout,
+        initiateLogout,
+        completeLogout,
         checkSession,
+        showReviewPrompt,
+        setShowReviewPrompt,
       }}
     >
       {children}

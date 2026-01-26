@@ -32,16 +32,26 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { data: session } = useNextAuthSession();
-  const { checkSession } = useSession();
+  const { checkSession, isAuthenticated } = useSession();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push("/dashboard");
+    }
+  }, [isAuthenticated, router]);
 
   // Sync NextAuth session to localStorage for compatibility with existing API calls
   useEffect(() => {
     if (session && (session as any).accessToken) {
       localStorage.setItem("token", (session as any).accessToken);
+      // Set auth cookie for middleware
+      document.cookie = `auth-token=${(session as any).accessToken}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
       // Wait a tick then update global session state
       setTimeout(() => {
         checkSession();
         router.push("/dashboard");
+        router.refresh();
       }, 100);
     }
   }, [session, router, checkSession]);
@@ -201,12 +211,12 @@ export default function SignupPage() {
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t border-border/50" />
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
+            {/* <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-background px-2 text-muted-foreground/50 font-medium">Original Choice</span>
-            </div>
+            </div> */}
           </div>
 
-          <Button
+          {/* <Button
             variant="outline"
             className="w-full h-12 rounded-xl border-border/50 hover:bg-muted/50 hover:text-primary transition-all duration-300 gap-3"
             onClick={handleGoogleSignup}
@@ -214,7 +224,7 @@ export default function SignupPage() {
           >
             <svg className="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24"><path d="M12.0003 20.45c-4.6667 0-8.4501-3.7834-8.4501-8.45 0-4.6667 3.7834-8.45 8.4501-8.45 2.2833 0 4.3833.8167 6.0167 2.3 l-2.3 2.3c-.9334-.9-2.2-1.4667-3.7167-1.4667-3.2166 0-5.8333 2.6167-5.8333 5.8333 5.8333 2.9667 0 5.15-2.0333 5.3-4.8333h-5.3v-3.4167h8.8334c.15.5834.25 1.1834.25 1.8334 0 5.25-3.5167 8.9833-9.0834 8.9166Z" fill="currentColor" /></svg>
             Sign up with Google
-          </Button>
+          </Button> */}
 
           {/* Footer Link */}
           <div className="mt-8 pt-6 border-t border-border/50 text-center">

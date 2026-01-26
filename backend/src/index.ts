@@ -14,9 +14,13 @@ import recommendationRouter from "./routes/recommendation";
 import userRouter from "./routes/user";
 import reportRouter from "./routes/report";
 import quoteRouter from "./routes/quote";
+import adminRouter from "./routes/admin";
+import reviewRouter from "./routes/review";
+import storyRouter from "./routes/story";
 import { connectDB } from "./utils/db";
 import { inngest } from "./inngest/index";
 import { functions as inngestFunctions } from "./inngest/functions";
+import { seedDefaultAdmin, shouldSeedAdmin } from "./utils/seedAdmin";
 
 // Load environment variables
 dotenv.config();
@@ -24,9 +28,30 @@ dotenv.config();
 // Create Express app
 const app = express();
 
+// Allowed origins for CORS
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:3001",
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
 // Middleware
 app.use(helmet()); // Security headers
-app.use(cors()); // Enable CORS
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      // In production, you might want to be stricter
+      console.warn(`CORS: Origin ${origin} not in allowed list`);
+      callback(null, true); // Allow anyway for now, or change to callback(new Error('Not allowed by CORS'))
+    }
+  },
+  credentials: true,
+}));
 app.use(express.json()); // Parse JSON bodies
 app.use(morgan("dev")); // HTTP request logger
 
@@ -50,6 +75,9 @@ app.use("/api/recommendations", recommendationRouter);
 app.use("/api/user", userRouter);
 app.use("/api/reports", reportRouter);
 app.use("/api/quote", quoteRouter);
+app.use("/api/admin", adminRouter);
+app.use("/api/reviews", reviewRouter);
+app.use("/api/stories", storyRouter);
 
 // Error handling middleware
 app.use(errorHandler);
@@ -59,6 +87,11 @@ const startServer = async () => {
   try {
     // Connect to MongoDB first
     await connectDB();
+
+    // Seed default admin (development only)
+    if (shouldSeedAdmin()) {
+      await seedDefaultAdmin();
+    }
 
     // Then start the server
     const PORT = process.env.PORT || 3001;

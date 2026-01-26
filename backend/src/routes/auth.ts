@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { register, login, logout, updateProfile } from "../controllers/authController"
+import { register, login, logout, updateProfile, googleAuth } from "../controllers/authController"
 
 //middleware - basically checkpoints
 import { auth } from "../middleware/auth";
@@ -11,6 +11,9 @@ router.post("/register", register);
 
 //POST /auth/login
 router.post("/login", login);
+
+//POST /auth/google - OAuth with Google
+router.post("/google", googleAuth);
 
 //POST /auth/logout
 router.post("/logout", auth, logout);
